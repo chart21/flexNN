@@ -66,7 +66,7 @@ namespace simple_nn
         this->output.setZero();
 		T* out = this->output.data();
 		const T* pout = prev_out.data();
-		auto denominator = kh * kw;
+		float denominator = kh * kw;
 		for (int n = 0; n < batch; n++) {
 			for (int c = 0; c < ch; c++) {
 				for (int i = 0; i < oh; i++) {
@@ -82,12 +82,16 @@ namespace simple_nn
 								}
 							}
 						}
-						out[out_idx] /= denominator;
+                        if ((kh*kw & (kh*kw - 1)) == 0) // if power of 2
+                            out[out_idx] *= FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator); //TODO: Do shifts instead
+                        else 
+                            out[out_idx] *= FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator); 
 					}
 				}
 			}
 		}
-		
+        T::communicate();
+    
         /* this->output.setZero(); */
 		/* T* out = this->output.data(); */
 		/* const T* pout = prev_out.data(); */
@@ -127,7 +131,7 @@ namespace simple_nn
 	{
 		T* pd = prev_delta.data();
 		const T* d = this->delta.data();
-		auto denominator = kh * kw;
+		float denominator = kh * kw;
 		for (int n = 0; n < batch; n++) {
 			for (int c = 0; c < ch; c++) {
 				for (int i = 0; i < oh; i++) {
@@ -139,7 +143,8 @@ namespace simple_nn
 								int jj = x + stride * j;
 								int prev_idx = jj + iw * (ii + ih * (c + ch * n));
 								if (ii >= 0 && ii < ih && jj >= 0 && jj < iw) {
-									pd[prev_idx] = d[cur_idx] / denominator;
+									/* pd[prev_idx] = d[cur_idx] / denominator; */
+                                    pd[prev_idx] += d[cur_idx] * FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator);
 								}
 							}
 						}

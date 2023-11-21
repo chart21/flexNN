@@ -67,36 +67,36 @@ namespace simple_nn
     template<typename T>
 	void MaxPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
-		T* out = this->output.data();
-		const T* pout = prev_out.data();
-		for (int n = 0; n < batch; n++) {
-			for (int c = 0; c < ch; c++) {
-				for (int i = 0; i < oh; i++) {
-					for (int j = 0; j < ow; j++) {
-						int out_idx = j + ow * (i + oh * (c + ch * n));
-						T max = T(FLOAT_MIN);
-						int max_idx = -1;
-						for (int y = 0; y < kh; y++) {
-							for (int x = 0; x < kw; x++) {
-								int ii = i * stride + y;
-								int jj = j * stride + x;
-								int pout_idx = jj + iw * (ii + ih * (c + ch * n));
-								T val = T(FLOAT_MIN);
-								if (ii >= 0 && ii < ih && jj >= 0 && jj < iw) {
-									val = pout[pout_idx];
-								}
-								if (val > max) {
-									max = val;
-									max_idx = pout_idx;
-								}
-							}
-						}
-						out[out_idx] = max;
-						indices[out_idx] = max_idx;
-					}
-				}
-			}
-		}
+		/* T* out = this->output.data(); */
+		/* const T* pout = prev_out.data(); */
+		/* for (int n = 0; n < batch; n++) { */
+		/* 	for (int c = 0; c < ch; c++) { */
+		/* 		for (int i = 0; i < oh; i++) { */
+		/* 			for (int j = 0; j < ow; j++) { */
+		/* 				int out_idx = j + ow * (i + oh * (c + ch * n)); */
+		/* 				T max = T(FLOAT_MIN); */
+		/* 				int max_idx = -1; */
+		/* 				for (int y = 0; y < kh; y++) { */
+		/* 					for (int x = 0; x < kw; x++) { */
+		/* 						int ii = i * stride + y; */
+		/* 						int jj = j * stride + x; */
+		/* 						int pout_idx = jj + iw * (ii + ih * (c + ch * n)); */
+		/* 						T val = T(FLOAT_MIN); */
+		/* 						if (ii >= 0 && ii < ih && jj >= 0 && jj < iw) { */
+		/* 							val = pout[pout_idx]; */
+		/* 						} */
+		/* 						if (val > max) { */
+		/* 							max = val; */
+		/* 							max_idx = pout_idx; */
+		/* 						} */
+		/* 					} */
+		/* 				} */
+		/* 				out[out_idx] = max; */
+		/* 				indices[out_idx] = max_idx; */
+		/* 			} */
+		/* 		} */
+		/* 	} */
+		/* } */
 	}
 
     template<typename T>

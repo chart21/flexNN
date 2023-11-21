@@ -36,8 +36,8 @@ namespace simple_nn
 	Config::Config() :
 		mode("train"),
 		model("lenet5"),
-		data_dir("./dataset"),
-		save_dir("./model_zoo"),
+		data_dir("./SimpleNN/dataset"),
+		save_dir("./SimpleNN/model_zoo"),
 		pretrained(""),
 		pool("avg"),
 		activ("relu"),

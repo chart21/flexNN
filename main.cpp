@@ -87,7 +87,7 @@ int main(int argc, char** argv)
 
 
 
-template<typename T>
+template<typename T, typename S>
 void load_model(const Config& cfg, SimpleNN<T>& model)
 {
 	if (cfg.model == "lenet5") {
@@ -141,7 +141,7 @@ void load_model(const Config& cfg, SimpleNN<T>& model)
 				/* 	model.add(new BatchNorm1d<T>); */
 				/* } */
 				if (cfg.loss == "cross_entropy") {
-					model.add(new Softmax<T>);
+					model.add(new Softmax<S>);
 				}
 				/* else { */
 				/* 	model.add(new Sigmoid<T>); */
@@ -174,7 +174,7 @@ void load_model(const Config& cfg, SimpleNN<T>& model)
 				/* 	model.add(new BatchNorm1d<T>); */
 				/* } */
 				if (cfg.loss == "cross_entropy") {
-					model.add(new Softmax<T>);
+					model.add(new Softmax<S>);
 				}
 				/* else { */
 				/* 	model.add(new Sigmoid<T>); */

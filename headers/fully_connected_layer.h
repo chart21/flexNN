@@ -58,7 +58,7 @@ namespace simple_nn
             for(int i = 0; i < W.rows(); ++i) {
             T sum = T(0);
             for(int j = 0; j < W.cols(); ++j) {
-                sum += (W(i, j) * prev_out(n, j));  // Use custom * and + operators
+                sum += W(i, j).prepare_dot(prev_out(n, j));  // Use custom * and + operators
             }
             sum.mask_and_send_dot(); // send immediately to utilize network better
             this->output(n, i) = sum;
@@ -99,16 +99,16 @@ namespace simple_nn
     template<typename T>
 	void Linear<T>::update_weight(float lr, float decay)
 	{
-		float t1 = (1 - (2 * lr * decay) / batch);
-		float t2 = lr / batch;
+		/* float t1 = (1 - (2 * lr * decay) / batch); */
+		/* float t2 = lr / batch; */
 
-		if (t1 != 1) {
-			W *= t1;
-			b *= t1;
-		}
+		/* if (t1 != 1) { */
+		/* 	W *= t1; */
+		/* 	b *= t1; */
+		/* } */
 
-		W -= t2 * dW;
-		b -= t2 * db;
+		/* W -= t2 * dW; */
+		/* b -= t2 * db; */
 	}
 
     template<typename T>

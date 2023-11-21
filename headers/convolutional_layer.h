@@ -96,7 +96,7 @@ namespace simple_nn
                 for(int j = 0; j < ohw; ++j) {
                     T sum = T(0);
                     for(int k = 0; k < kernel.cols(); ++k) {
-                        sum += (kernel(i, k) * im_col(k, j));  // Use custom * and + operators
+                        sum += kernel(i, k).prepare_dot(im_col(k, j));  // Use custom * and + operators
                     }
                     sum.mask_and_send_dot(); // send immediately to utilize network better
                     this->output(oc * n + i, j) = sum;
@@ -120,7 +120,7 @@ namespace simple_nn
 		for (int n = 0; n < batch; n++) {
 			const T* im = prev_out.data() + (ic * ihw) * n;
 			im2col(im, ic, ih, iw, kh, 1, pad, im_col.data());
-			dkernel += this->delta.block(oc * n, 0, oc, ohw) * im_col.transpose();
+			dkernel += this->delta.block(oc * n, 0, oc, ohw) * im_col.transpose(); // TODO: change to prepare dot/ manual looping, no Eigen
 			dbias += this->delta.block(oc * n, 0, oc, ohw).rowwise().sum();
 		}
 
@@ -136,16 +136,16 @@ namespace simple_nn
     template<typename T>
 	void Conv2d<T>::update_weight(float lr, float decay)
 	{
-		float t1 = (1 - (2 * lr * decay) / batch);
-		float t2 = lr / batch;
+		/* float t1 = (1 - (2 * lr * decay) / batch); */
+		/* float t2 = lr / batch; */
 
-		if (t1 != 1) {
-			kernel *= t1;
-			bias *= t1;
-		}
+		/* if (t1 != 1) { */
+		/* 	kernel *= t1; */
+		/* 	bias *= t1; */
+		/* } */
 
-		kernel -= t2 * dkernel;
-		bias -= t2 * dbias;
+		/* kernel -= t2 * dkernel; */
+		/* bias -= t2 * dbias; */
 	}
 
     template<typename T>

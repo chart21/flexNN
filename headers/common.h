@@ -31,9 +31,9 @@ namespace simple_nn
     using MatXf = MatX<float>;
 	typedef Matrix<int, Dynamic, Dynamic, RowMajor> MatXi;
 	typedef Matrix<int, Dynamic, 1> VecXi;
-    using F = Share<float>;
-    using S32 = Share<uint32_t>;
-    using S64 = Share<uint64_t>;
+    /* using F = Share<float>; */
+    /* using S32 = Share<uint32_t>; */
+    /* using S64 = Share<uint64_t>; */
     /* using MART = Wrapper<float,int64_t,uint64_t,ANOTHER_FRACTIONAL_VALUE,uint64_t>; */
     /* using ART = Wrapper<float,int64_t,uint64_t,ANOTHER_FRACTIONAL_VALUE,uint64_t>; */
     /* using FCART = Wrapper<float,float,float,ANOTHER_FRACTIONAL_VALUE,float>; */

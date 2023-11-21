@@ -208,6 +208,8 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 
 		void forward(const MatX<T>& prev_out, bool is_training) override
 		{
+            assert(this->output.size() == prev_out.size());
+
         /* T::RELU(begin, begin + this->height, this->output.data()); */
         /* this->output.setZero(); */
 			/* std::transform( */
@@ -217,20 +219,24 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 				/* [](const T& e) { return e.relu(); } */
 			/* ); // need to define a vectorized relu call to minimize communication rounds */
 		//instead of above approach, get contiguous data from prev_out with a beggining and end pointer and use T::RELU
-        T::RELU(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data());
+        
+            /* T::RELU(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data()); */
+            /* std::copy(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data()); */
+            /* RELU_range_in_place<16>( (T*) this->output.data(), (int) this->out_block_size); */
+            RELU(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data());
         }
 
 		void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override
 		{
-			std::transform(
-				prev_out.data(), 
-				prev_out.data() + this->out_block_size, 
-				this->delta.data(), 
-				prev_delta.data(),
-				[](const T& e1, const T& e2) {
-					return e1.drelu(e2);
-				}
-			);
+			/* std::transform( */
+			/* 	prev_out.data(), */ 
+			/* 	prev_out.data() + this->out_block_size, */ 
+			/* 	this->delta.data(), */ 
+			/* 	prev_delta.data(), */
+			/* 	[](const T& e1, const T& e2) { */
+			/* 		return e1.drelu(e2); */
+			/* 	} */
+			/* ); */
 		}
 	};
 }

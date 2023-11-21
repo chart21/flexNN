@@ -26,6 +26,7 @@ namespace simple_nn
 		void compile(vector<int> input_shape, Optimizer* optim=nullptr, Loss<T>* loss=nullptr);
 		void fit(const DataLoader<T>& train_loader, int epochs, const DataLoader<T>& valid_loader);
 		void save(string save_dir, string fname);
+        template<int id>
 		void load(string save_dir, string fname);
 		void evaluate(const DataLoader<T>& data_loader);
 	private:
@@ -38,6 +39,10 @@ namespace simple_nn
 		void backward(const MatX<T>& X);
 		void update_weight();
 		int count_params();
+        template<int id>
+        void prepare_read_params(fstream& fs);
+        template<int id>
+        void complete_read_params(fstream& fs);
 		void write_or_read_params(fstream& fs, string mode);
 	};
 
@@ -129,14 +134,14 @@ namespace simple_nn
 			}
 
 			cout << fixed << setprecision(2);
-			cout << " - t: " << sec.count() << 's';
-			cout << " - loss: " << (loss / n_batch).reveal();
+			/* cout << " - t: " << sec.count() << 's'; */
+			/* cout << " - loss: " << loss.reveal() / n_batch; */
 			/* cout << " - error: " << (error / n_batch).reveal() * 100 << "%"; */
-			cout << " - error: " << (error / n_batch) * 100 << "%";
+			/* cout << " - error: " << (error / n_batch) * 100 << "%"; */
 			if (n_batch_valid != 0) {
-				cout << " - loss(valid): " << (loss_valid / n_batch_valid).reveal();
+				/* cout << " - loss(valid): " << loss_valid.reveal() / n_batch_valid; */
 				/* cout << " - error(valid): " << (error_valid / n_batch_valid).reveal() * 100 << "%"; */
-				cout << " - error(valid): " << (error_valid / n_batch_valid) * 100 << "%";
+				/* cout << " - error(valid): " << (error_valid / n_batch_valid) * 100 << "%"; */
 			}
 			cout << endl;
 		}
@@ -158,10 +163,17 @@ namespace simple_nn
 		assert(output.rows() == classified.size());
 
         //loop over all elements in output and save them in float Matrix
+        for (int i = 0; i < output.rows(); i++) {
+            for (int j = 0; j < output.cols(); j++) {
+                output(i,j).prepare_reveal_to_all();
+            }
+        }
+        T::communicate();
         MatXf output_float(output.rows(), output.cols());
         for (int i = 0; i < output.rows(); i++) {
             for (int j = 0; j < output.cols(); j++) {
-                output_float(i,j) = output(i,j).reveal();
+                output_float(i,j) = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(output(i,j).complete_reveal_to_all_single());
+                /* output_float(i,j) = 0; */
             }
         }
 		
@@ -243,8 +255,9 @@ namespace simple_nn
 
 		return;
 	}
-
+    
     template<typename T>
+    template<int id>
 	void SimpleNN<T>::load(string save_dir, string fname)
 	{
 		string path = save_dir + "/" + fname;
@@ -263,8 +276,11 @@ namespace simple_nn
 			fin.close();
 			exit(1);
 		}
+        prepare_read_params<id>(fin);
+        T::communicate();
+        complete_read_params<id>(fin);
+		/* write_or_read_params(fin, "read"); */
 
-		write_or_read_params(fin, "read");
 		fin.close();
 
 		cout << "Pretrained weights are loaded." << endl;
@@ -308,8 +324,9 @@ namespace simple_nn
 		return total_params;
 	}
 
-template<typename T>
-void SimpleNN<T>::write_or_read_params(fstream& fs, string mode)
+template <typename T>
+template <int id>
+void SimpleNN<T>::prepare_read_params(fstream& fs)
 {
     for (Layer<T>* l : net) {
         vector<float> tempMatrix1, tempMatrix2, tempMatrix3, tempMatrix4; // Temporary vectors for parameter storage
@@ -321,31 +338,31 @@ void SimpleNN<T>::write_or_read_params(fstream& fs, string mode)
             tempMatrix1.resize(s1);
             tempMatrix2.resize(s2);
 
-            if (mode == "write") {
-                for (int i = 0; i < s1; i++) 
-                {
-                    tempMatrix1[i] = lc->W(i / lc->W.cols(), i % lc->W.cols()).reveal();
-                }
-                for (int i = 0; i < s2; i++)
-                {
-                    tempMatrix2[i] = lc->b[i].reveal();
-                }
-                    fs.write((char*)tempMatrix1.data(), sizeof(float) * s1);
-                fs.write((char*)tempMatrix2.data(), sizeof(float) * s2);
-            }
-            else {
+            /* if (mode == "write") { */
+                /* for (int i = 0; i < s1; i++) */ 
+                /* { */
+                /*     tempMatrix1[i] = lc->W(i / lc->W.cols(), i % lc->W.cols()).reveal(); */
+                /* } */
+                /* for (int i = 0; i < s2; i++) */
+                /* { */
+                /*     tempMatrix2[i] = lc->b[i].reveal(); */
+                /* } */
+                /* fs.write((char*)tempMatrix1.data(), sizeof(float) * s1); */
+                /* fs.write((char*)tempMatrix2.data(), sizeof(float) * s2); */
+            /* } */
+            /* else { */
                 fs.read((char*)tempMatrix1.data(), sizeof(float) * s1);
                 fs.read((char*)tempMatrix2.data(), sizeof(float) * s2);
                 for (int i = 0; i < s1; i++) 
                 {
-                    lc->W(i / lc->W.cols(), i % lc->W.cols()) = T(tempMatrix1[i]);
+                    lc->W(i / lc->W.cols(), i % lc->W.cols()).template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]));
                 }
                 for (int i = 0; i < s2; i++)
                 {
-                    lc->b[i] = T(tempMatrix2[i]);
+                    lc->b[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]));
                 }
             }
-        }
+        /* } */
         else if (l->type == LayerType::CONV2D) {
             Conv2d<T>* lc = dynamic_cast<Conv2d<T>*>(l);
             int s1 = lc->kernel.rows() * lc->kernel.cols();
@@ -353,33 +370,181 @@ void SimpleNN<T>::write_or_read_params(fstream& fs, string mode)
             tempMatrix1.resize(s1);
             tempMatrix2.resize(s2);
 
-            if (mode == "write") {
-                for (int i = 0; i < s1; i++) 
-                {
-                    tempMatrix1[i] = lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()).reveal();
-                }
-                for (int i = 0; i < s2; i++) 
-                {
-                    tempMatrix2[i] = lc->bias[i].reveal();
-                }
-                fs.write((char*)tempMatrix1.data(), sizeof(float) * s1);
-                fs.write((char*)tempMatrix2.data(), sizeof(float) * s2);
-            }
-            else {
+            /* if (mode == "write") { */
+                /* for (int i = 0; i < s1; i++) */ 
+                /* { */
+                /*     tempMatrix1[i] = lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()).reveal(); */
+                /* } */
+                /* for (int i = 0; i < s2; i++) */ 
+                /* { */
+                /*     tempMatrix2[i] = lc->bias[i].reveal(); */
+                /* } */
+                /* fs.write((char*)tempMatrix1.data(), sizeof(float) * s1); */
+                /* fs.write((char*)tempMatrix2.data(), sizeof(float) * s2); */
+            /* } */
+            /* else { */
                 fs.read((char*)tempMatrix1.data(), sizeof(float) * s1);
                 fs.read((char*)tempMatrix2.data(), sizeof(float) * s2);
                 for (int i = 0; i < s1; i++)
                 {
-                    lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()) = T(tempMatrix1[i]);
+                    lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()).template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]));
                 } 
                 for (int i = 0; i < s2; i++)
                 {
-                    lc->bias[i] = T(tempMatrix2[i]);
+                    lc->bias[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]));
                 }
             }
         }
+    /* } */
+}
+
+
+    /* template<typename T> */
+/* void SimpleNN<T>::prepare_read_params(fstream& fs) */
+/* { */
+    /* for (Layer<T>* l : net) { */
+
+    /*     if (l->type == LayerType::LINEAR) { */
+    /*         Linear<T>* lc = dynamic_cast<Linear<T>*>(l); */
+    /*         int s1 = lc->W.rows() * lc->W.cols(); */
+    /*         int s2 = lc->b.size(); */
+
+    /*             for (int i = 0; i < s1; i++) */ 
+    /*             { */
+    /*                 lc->W(i / lc->W.cols(), i % lc->W.cols()).template prepare_receive_from<P_0>(); */
+    /*             } */
+    /*             for (int i = 0; i < s2; i++) */
+    /*             { */
+    /*                 lc->b[i].template prepare_receive_from<P_0>(); */
+    /*             } */
+    /*         } */
+    /*     else if (l->type == LayerType::CONV2D) { */
+    /*         Conv2d<T>* lc = dynamic_cast<Conv2d<T>*>(l); */
+    /*         int s1 = lc->kernel.rows() * lc->kernel.cols(); */
+    /*         int s2 = lc->bias.size(); */
+
+    /*             for (int i = 0; i < s1; i++) */
+    /*             { */
+    /*                 lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()).template prepare_receive_from<P_0>(); */
+    /*             } */ 
+    /*             for (int i = 0; i < s2; i++) */
+    /*             { */
+    /*                 lc->bias[i].template prepare_receive_from<P_0>(); */
+    /*             } */
+    /*         } */
+    /* } */
+/* } */
+    
+template <typename T>
+template <int id>
+void SimpleNN<T>::complete_read_params(fstream& fs)
+{
+    for (Layer<T>* l : net) {
+
+        if (l->type == LayerType::LINEAR) {
+            Linear<T>* lc = dynamic_cast<Linear<T>*>(l);
+            int s1 = lc->W.rows() * lc->W.cols();
+            int s2 = lc->b.size();
+
+                for (int i = 0; i < s1; i++) 
+                {
+                    lc->W(i / lc->W.cols(), i % lc->W.cols()).template complete_receive_from<id>();
+                }
+                for (int i = 0; i < s2; i++)
+                {
+                    lc->b[i].template complete_receive_from<id>();
+                }
+            }
+        else if (l->type == LayerType::CONV2D) {
+            Conv2d<T>* lc = dynamic_cast<Conv2d<T>*>(l);
+            int s1 = lc->kernel.rows() * lc->kernel.cols();
+            int s2 = lc->bias.size();
+
+                for (int i = 0; i < s1; i++)
+                {
+                    lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()).template complete_receive_from<id>();
+                } 
+                for (int i = 0; i < s2; i++)
+                {
+                    lc->bias[i].template complete_receive_from<id>();
+                }
+            }
     }
 }
+
+
+/* template<typename T> */
+/* void SimpleNN<T>::write_or_read_params(fstream& fs, string mode) */
+/* { */
+/*     for (Layer<T>* l : net) { */
+/*         vector<float> tempMatrix1, tempMatrix2, tempMatrix3, tempMatrix4; // Temporary vectors for parameter storage */
+
+/*         if (l->type == LayerType::LINEAR) { */
+/*             Linear<T>* lc = dynamic_cast<Linear<T>*>(l); */
+/*             int s1 = lc->W.rows() * lc->W.cols(); */
+/*             int s2 = lc->b.size(); */
+/*             tempMatrix1.resize(s1); */
+/*             tempMatrix2.resize(s2); */
+
+/*             if (mode == "write") { */
+/*                 for (int i = 0; i < s1; i++) */ 
+/*                 { */
+/*                     tempMatrix1[i] = lc->W(i / lc->W.cols(), i % lc->W.cols()).reveal(); */
+/*                 } */
+/*                 for (int i = 0; i < s2; i++) */
+/*                 { */
+/*                     tempMatrix2[i] = lc->b[i].reveal(); */
+/*                 } */
+/*                     fs.write((char*)tempMatrix1.data(), sizeof(float) * s1); */
+/*                 fs.write((char*)tempMatrix2.data(), sizeof(float) * s2); */
+/*             } */
+/*             else { */
+/*                 fs.read((char*)tempMatrix1.data(), sizeof(float) * s1); */
+/*                 fs.read((char*)tempMatrix2.data(), sizeof(float) * s2); */
+/*                 for (int i = 0; i < s1; i++) */ 
+/*                 { */
+/*                     lc->W(i / lc->W.cols(), i % lc->W.cols()) = T(tempMatrix1[i]); */
+/*                 } */
+/*                 for (int i = 0; i < s2; i++) */
+/*                 { */
+/*                     lc->b[i] = T(tempMatrix2[i]); */
+/*                 } */
+/*             } */
+/*         } */
+/*         else if (l->type == LayerType::CONV2D) { */
+/*             Conv2d<T>* lc = dynamic_cast<Conv2d<T>*>(l); */
+/*             int s1 = lc->kernel.rows() * lc->kernel.cols(); */
+/*             int s2 = lc->bias.size(); */
+/*             tempMatrix1.resize(s1); */
+/*             tempMatrix2.resize(s2); */
+
+/*             if (mode == "write") { */
+/*                 for (int i = 0; i < s1; i++) */ 
+/*                 { */
+/*                     tempMatrix1[i] = lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()).reveal(); */
+/*                 } */
+/*                 for (int i = 0; i < s2; i++) */ 
+/*                 { */
+/*                     tempMatrix2[i] = lc->bias[i].reveal(); */
+/*                 } */
+/*                 fs.write((char*)tempMatrix1.data(), sizeof(float) * s1); */
+/*                 fs.write((char*)tempMatrix2.data(), sizeof(float) * s2); */
+/*             } */
+/*             else { */
+/*                 fs.read((char*)tempMatrix1.data(), sizeof(float) * s1); */
+/*                 fs.read((char*)tempMatrix2.data(), sizeof(float) * s2); */
+/*                 for (int i = 0; i < s1; i++) */
+/*                 { */
+/*                     lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()) = T(tempMatrix1[i]); */
+/*                 } */ 
+/*                 for (int i = 0; i < s2; i++) */
+/*                 { */
+/*                     lc->bias[i] = T(tempMatrix2[i]); */
+/*                 } */
+/*             } */
+/*         } */
+/*     } */
+/* } */
 
 
     /* template<typename T> */
