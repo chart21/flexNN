@@ -160,7 +160,7 @@ namespace simple_nn
 	void SimpleNN<T>::classify(const MatX<T>& output, VecXi& classified)
 	{
 		// assume that the last layer is linear, not 2d.
-		assert(output.rows() == classified.size());
+		assert(output.rows() == classified.size()); // Adjusted because of sint
 
         //loop over all elements in output and save them in float Matrix
         for (int i = 0; i < output.rows(); i++) {
@@ -169,9 +169,20 @@ namespace simple_nn
             }
         }
         T::communicate();
+        /* MatXf output_float(output.rows()*DATTYPE, output.cols()); */
+        /* for (int i = 0; i < output.rows(); i++) { */
+        /*         alignas(sizeof(DATTYPE)) UINT_TYPE tmp[DATTYPE]; */
+        /*         output(i,0).complete_reveal_to_all(tmp); */
+        /*         for (int k = 0; k < DATTYPE; k++) { */
+        /*             output_float(i+k*DATTYPE,0) = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(tmp[k]); */
+        /*         } */
+
+        
         MatXf output_float(output.rows(), output.cols());
+
         for (int i = 0; i < output.rows(); i++) {
             for (int j = 0; j < output.cols(); j++) {
+
                 output_float(i,j) = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(output(i,j).complete_reveal_to_all_single());
                 /* output_float(i,j) = 0; */
             }
@@ -188,6 +199,7 @@ namespace simple_nn
 	/* void SimpleNN<T>::error_criterion(const VecXi& classified, const VecXi& labels, T& error_acc) */
 	{
 		int batch = (int)classified.size();
+        /* assert(labels.size() >= batch); */
 
 		/* T error(0); */
         float error(0);
@@ -631,7 +643,7 @@ void SimpleNN<T>::complete_read_params(fstream& fs)
 
 		MatX<T> X;
 		VecXi Y;
-		VecXi classified(batch);
+		VecXi classified(batch); //Adjusted because of sint
 
 		system_clock::time_point start = system_clock::now();
 		for (int n = 0; n < n_batch; n++) {
@@ -653,7 +665,7 @@ void SimpleNN<T>::complete_read_params(fstream& fs)
 		cout << fixed << setprecision(2);
 		cout << " - t: " << sec.count() << "s";
 		cout << " - error(" << batch * n_batch << " images): ";
-		/* cout << error_acc.reveal() / (batch * n_batch) * 100 << "%" << endl; */
+		/* cout << error_acc.reveal() / (batch * n_batch * DATTYPE) * 100 << "%" << endl; */
 		cout << error_acc / (batch * n_batch) * 100 << "%" << endl;
 	}
 }

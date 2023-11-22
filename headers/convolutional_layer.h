@@ -88,6 +88,8 @@ namespace simple_nn
     template<typename T>
 	void Conv2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
+        /* if(current_phase == 1) */
+        /*     std::cout << "Conv2d ..." << std::endl; */
 		for (int n = 0; n < batch; n++) {
 			const T* im = prev_out.data() + (ic * ihw) * n;
 			im2col(im, ic, ih, iw, kh, 1, pad, im_col.data());

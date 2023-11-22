@@ -63,6 +63,8 @@ namespace simple_nn
     template<typename T>
 	void AvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
+    /* if(current_phase == 1) */
+    /* std::cout << "AVG Pool ..." << std::endl; */
         T::communicate();
         this->output.setZero();
 		T* out = this->output.data();

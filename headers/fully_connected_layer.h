@@ -54,6 +54,8 @@ namespace simple_nn
     template<typename T>
 	void Linear<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
+    /* if(current_phase == 1) */
+    /* std::cout << "FC ..." << std::endl; */
 		for (int n = 0; n < batch; n++) {
             for(int i = 0; i < W.rows(); ++i) {
             T sum = T(0);
