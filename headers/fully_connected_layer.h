@@ -62,7 +62,7 @@ namespace simple_nn
             for(int j = 0; j < W.cols(); ++j) {
                 sum += W(i, j).prepare_dot(prev_out(n, j));  // Use custom * and + operators
             }
-            sum.mask_and_send_dot(); // send immediately to utilize network better
+            sum.mask_and_send_dot_without_trunc(); // send immediately to utilize network better
             this->output(n, i) = sum;
         }
             /* tmp_output2.row(n).noalias() = W * prev_out.row(n).transpose(); */
@@ -72,7 +72,7 @@ namespace simple_nn
             /* for (int i = 0; i < this->output.size(); i++) */ 
             /*     this->output(i).mask_and_send_dot(); */
             for (int i = 0; i < this->output.size(); i++) {
-                this->output(i).complete_mult();
+                this->output(i).complete_mult_without_trunc();
             }
 
 		    for (int n = 0; n < batch; n++) 

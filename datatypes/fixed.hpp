@@ -12,13 +12,21 @@
 template <typename float_type, typename INT_TYPE, typename UINT_TYPE, int fractional_bits>
 struct FloatFixedConverter {
 static float_type fixed_to_float(INT_TYPE fixed_val) {
+#if TRUNC_THEN_MULT == 1
+    const float_type scale = (1 << fractional_bits*2);
+#else
     const float_type scale = (1 << fractional_bits);
+#endif
     return static_cast<float_type>(fixed_val) / scale;
 }
 
 static INT_TYPE float_to_fixed(float_type float_val) {
+#if TRUNC_THEN_MULT == 1
+    const float_type scale = (1 << fractional_bits*2);
+    float_val = float_val/ (1 << fractional_bits); // variant with trunc then mult
+#else
     const float_type scale = (1 << fractional_bits);
-
+#endif
   // Check for overflow and underflow
     if (float_val >= (std::numeric_limits<INT_TYPE>::max()) / scale) { // Modified check
         std::cout << "Overflow occurred! -> clamping" << float_val << std::endl;

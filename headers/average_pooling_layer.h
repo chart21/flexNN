@@ -86,9 +86,25 @@ namespace simple_nn
 							}
 						}
                         if ((kh*kw & (kh*kw - 1)) == 0) // if power of 2
+                        #if TRUNC_APPROACH == 0
                             out[out_idx] *= FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator); //TODO: Do shifts instead
+                        #else
+                            #if TRUNC_THEN_MULT == 0
+                            out[out_idx] = out[out_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator)); //TODO: Do shifts instead
+                            #else
+                                continue;
+                            #endif
+                        #endif
                         else 
-                            out[out_idx] *= FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator); 
+                        #if TRUNC_APPROACH == 0
+                            out[out_idx] *= FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator); //TODO: Do shifts instead
+                        #else
+                            #if TRUNC_THEN_MULT == 0
+                            out[out_idx] = out[out_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator)); //TODO: Do shifts instead
+                            #else
+                                continue;
+                            #endif
+                        #endif
 					}
 				}
 			}
@@ -127,6 +143,17 @@ namespace simple_nn
 				output.row(c + channels * n) = im_col.colwise().mean();
 			}
 		}*/
+#if TRUNC_APPROACH == 1
+    #if TRUNC_THEN_MULT == 1
+        trunc_2k_in_place(out, this->output.size());
+        T::communicate();
+        for (int i = 0; i < this->output.size(); i++)
+            out[i] = out[i].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator)); //TODO: Do shifts instead
+    #else
+        trunc_2k_in_place(out, this->output.size());
+        T::communicate();
+    #endif
+#endif
 	}
 
     template<typename T>
@@ -148,13 +175,16 @@ namespace simple_nn
 								if (ii >= 0 && ii < ih && jj >= 0 && jj < iw) {
 									/* pd[prev_idx] = d[cur_idx] / denominator; */
                                     pd[prev_idx] += d[cur_idx] * FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator);
-								}
+                                    /* pd[prev_idx] += d[cur_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator)); */
+							        	
+                                }
 							}
 						}
 					}
 				}
 			}
 		}
+        /* trunc_2k_in_place(pd, prev_delta.size()); */
 	}
 
     template<typename T>

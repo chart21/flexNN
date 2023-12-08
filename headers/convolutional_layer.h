@@ -100,7 +100,7 @@ namespace simple_nn
                     for(int k = 0; k < kernel.cols(); ++k) {
                         sum += kernel(i, k).prepare_dot(im_col(k, j));  // Use custom * and + operators
                     }
-                    sum.mask_and_send_dot(); // send immediately to utilize network better
+                    sum.mask_and_send_dot_without_trunc(); // send immediately to utilize network better
                     this->output(oc * n + i, j) = sum;
                 }
             }
@@ -109,7 +109,7 @@ namespace simple_nn
         }
             T::communicate();
             for (int i = 0; i < this->output.size(); i++) {
-                this->output(i).complete_mult();
+                this->output(i).complete_mult_without_trunc();
             }
 		for (int n = 0; n < batch; n++) {
 			this->output.block(oc * n, 0, oc, ohw).colwise() += bias;

@@ -28,7 +28,8 @@ namespace simple_nn
 		void save(string save_dir, string fname);
         template<int id>
 		void load(string save_dir, string fname);
-		void evaluate(const DataLoader<T>& data_loader);
+        template<typename F>
+		void evaluate(const DataLoader<F>& data_loader);
 	private:
 		void forward(const MatX<T>& X, bool is_training);
 		void classify(const MatX<T>& output, VecXi& classified);
@@ -160,24 +161,29 @@ namespace simple_nn
 	void SimpleNN<T>::classify(const MatX<T>& output, VecXi& classified)
 	{
 		// assume that the last layer is linear, not 2d.
-		assert(output.rows() == classified.size()); // Adjusted because of sint
-
+        std::cout << "output:" << output.rows() << " " << output.cols() << "\n";
+        std::cout << "classified:" << classified.size() << "\n";
+        assert(output.rows()*(BASE_DIV) == classified.size()); // Adjusted because of sint
         //loop over all elements in output and save them in float Matrix
+        
         for (int i = 0; i < output.rows(); i++) {
             for (int j = 0; j < output.cols(); j++) {
                 output(i,j).prepare_reveal_to_all();
             }
         }
         T::communicate();
-        /* MatXf output_float(output.rows()*DATTYPE, output.cols()); */
-        /* for (int i = 0; i < output.rows(); i++) { */
-        /*         alignas(sizeof(DATTYPE)) UINT_TYPE tmp[DATTYPE]; */
-        /*         output(i,0).complete_reveal_to_all(tmp); */
-        /*         for (int k = 0; k < DATTYPE; k++) { */
-        /*             output_float(i+k*DATTYPE,0) = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(tmp[k]); */
-        /*         } */
-
-        
+#if JIT_VEC == 1
+        MatXf output_float(output.rows()*(BASE_DIV), output.cols()); // 32x10
+        for (int i = 0; i < output.rows(); i++) {
+            for (int j = 0; j < output.cols(); j++) {
+                alignas(sizeof(DATTYPE)) UINT_TYPE tmp[BASE_DIV];
+                output(i,j).complete_reveal_to_all(tmp);
+                for (int k = 0; k < BASE_DIV; k++) {
+                    output_float(i*(BASE_DIV)+k,j) = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(tmp[k]);
+                }
+        }
+        } 
+#else
         MatXf output_float(output.rows(), output.cols());
 
         for (int i = 0; i < output.rows(); i++) {
@@ -187,7 +193,8 @@ namespace simple_nn
                 /* output_float(i,j) = 0; */
             }
         }
-		
+#endif
+        
         for (int i = 0; i < classified.size(); i++) {
 			/* output.row(i).maxCoeff(&classified[i]); */
 			output_float.row(i).maxCoeff(&classified[i]);
@@ -634,10 +641,13 @@ void SimpleNN<T>::complete_read_params(fstream& fs)
 	/* } */
 
     template<typename T>
-	void SimpleNN<T>::evaluate(const DataLoader<T>& data_loader)
+    template<typename F>
+	void SimpleNN<T>::evaluate(const DataLoader<F>& data_loader)
 	{
 		int batch = data_loader.input_shape()[0];
 		int n_batch = data_loader.size();
+        std::cout << "batch: " << batch << "\n";
+        std::cout << "n_batch: " << n_batch << "\n";
 		/* T error_acc(0); */
         float error_acc(0);
 
@@ -647,10 +657,43 @@ void SimpleNN<T>::complete_read_params(fstream& fs)
 
 		system_clock::time_point start = system_clock::now();
 		for (int n = 0; n < n_batch; n++) {
-			MatX<T> X = data_loader.get_x(n);
+			auto test_X = data_loader.get_x(n); //Adjusted because of sint
 			VecXi Y = data_loader.get_y(n);
-
-			forward(X, false);
+#if JIT_VEC == 1 
+			/* MatX<float> test_X = data_loader.get_x(n); //Adjusted because of sint */
+            MatX<T> test_XX(test_X.rows()/(BASE_DIV), test_X.cols());
+    for (int j = 0; j < test_X.cols(); j++) {
+        for (int i = 0; i < test_X.rows(); i+=BASE_DIV) {
+            if(i+BASE_DIV > test_X.rows()) {
+                break; // do not process leftovers
+            }
+        alignas(sizeof(DATATYPE)) UINT_TYPE tmp[BASE_DIV];
+#if BASETYPE == 1
+        alignas(sizeof(DATATYPE)) DATATYPE tmp2[BITLENGTH];
+#else
+        alignas(sizeof(DATATYPE)) DATATYPE tmp2;
+#endif
+        for (int k = 0; k < BASE_DIV; ++k) {
+            tmp[k] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(test_X(i+k, j));
+        }
+#if BASETYPE == 1
+        orthogonalize_arithmetic(tmp, tmp2);
+#else
+        orthogonalize_arithmetic(tmp,&tmp2,1);
+#endif
+        test_XX(i / (BASE_DIV), j).template prepare_receive_from<P_0>(tmp2);
+        }
+    }
+    T::communicate();
+    for (int j = 0; j < test_XX.cols(); ++j) {
+        for (int i = 0; i < test_XX.rows(); ++i) {
+            test_XX(i, j).template complete_receive_from<P_0>();
+        }
+    }
+			forward(test_XX, false);
+#else
+			forward(test_X, false);
+#endif
 			classify(net.back()->output, classified);
 			error_criterion(classified, Y, error_acc);
 			
