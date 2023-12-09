@@ -56,7 +56,8 @@ namespace simple_nn
 	{
     /* if(current_phase == 1) */
     /* std::cout << "FC ..." << std::endl; */
-		for (int n = 0; n < batch; n++) {
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+        for (int n = 0; n < batch; n++) {
             for(int i = 0; i < W.rows(); ++i) {
             T sum = T(0);
             for(int j = 0; j < W.cols(); ++j) {
@@ -77,6 +78,9 @@ namespace simple_nn
 
 		    for (int n = 0; n < batch; n++) 
 			    this->output.row(n).noalias() += b;
+            std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+            
+            std::cout << "PARTY " << PARTY <<  ": Time for FC: " << double(std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count())/1000000 << "s, Output Size: " << this->output.size() << std::endl;
 		
 	}
 

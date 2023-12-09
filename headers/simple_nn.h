@@ -161,8 +161,8 @@ namespace simple_nn
 	void SimpleNN<T>::classify(const MatX<T>& output, VecXi& classified)
 	{
 		// assume that the last layer is linear, not 2d.
-        std::cout << "output:" << output.rows() << " " << output.cols() << "\n";
-        std::cout << "classified:" << classified.size() << "\n";
+        /* std::cout << "output:" << output.rows() << " " << output.cols() << "\n"; */
+        /* std::cout << "classified:" << classified.size() << "\n"; */
         assert(output.rows()*(BASE_DIV) == classified.size()); // Adjusted because of sint
         //loop over all elements in output and save them in float Matrix
         
@@ -646,8 +646,8 @@ void SimpleNN<T>::complete_read_params(fstream& fs)
 	{
 		int batch = data_loader.input_shape()[0];
 		int n_batch = data_loader.size();
-        std::cout << "batch: " << batch << "\n";
-        std::cout << "n_batch: " << n_batch << "\n";
+        /* std::cout << "batch: " << batch << "\n"; */
+        /* std::cout << "n_batch: " << n_batch << "\n"; */
 		/* T error_acc(0); */
         float error_acc(0);
 

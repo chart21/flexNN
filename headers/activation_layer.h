@@ -1,5 +1,6 @@
 #pragma once
 #include "layer.h"
+#include <chrono>
 
 namespace simple_nn
 {
@@ -208,6 +209,7 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 
 		void forward(const MatX<T>& prev_out, bool is_training) override
 		{
+            std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
             assert(this->output.size() == prev_out.size());
 
         /* T::RELU(begin, begin + this->height, this->output.data()); */
@@ -224,6 +226,8 @@ void forward(const MatX<T>& prev_out, bool is_training) override
             /* std::copy(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data()); */
             /* RELU_range_in_place<16>( (T*) this->output.data(), (int) this->out_block_size); */
             RELU(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data());
+            std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+            std::cout << "PARTY " << PARTY <<  ": Time for RELU (total): " << double(std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count())/1000000 << "s, Output Size: " << this->out_block_size << std::endl;
         }
 
 		void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override
