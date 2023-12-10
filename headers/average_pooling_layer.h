@@ -153,7 +153,7 @@ namespace simple_nn
         trunc_2k_in_place(out, this->output.size());
         T::communicate();
         for (int i = 0; i < this->output.size(); i++)
-            out[i] = out[i].mult_public(floatfixedconverter<float, int_type, uint_type, fractional>::float_to_ufixed(1/denominator)); //todo: do shifts instead
+            out[i] = out[i].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator)); 
     #else
         trunc_2k_in_place(out, this->output.size());
         T::communicate();
