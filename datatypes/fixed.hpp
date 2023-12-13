@@ -49,7 +49,7 @@ static INT_TYPE twos_complement_to_int(UINT_TYPE val) {
     return static_cast<INT_TYPE>(val);
 }
 
-static INT_TYPE float_to_ufixed(float_type float_val) { //TODO: should be UINT_TYPE?
+static UINT_TYPE float_to_ufixed(float_type float_val) { //TODO: should be UINT_TYPE?
     return int_to_twos_complement(float_to_fixed(float_val));
 }
 

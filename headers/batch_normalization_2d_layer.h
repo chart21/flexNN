@@ -85,18 +85,21 @@ namespace simple_nn
 
     template<typename T>
 	void BatchNorm2d<T>::forward(const MatX<T>& prev_out, bool is_training)
-	{
-		if (is_training) {
+    {
+        std::cout << "PARTY " << PARTY <<  ": Batchnorm (2D) forward ..." << std::endl;
+    std::chrono::high_resolution_clock::time_point r1 = std::chrono::high_resolution_clock::now();
+#if IS_TRAINING == 1
 			calc_batch_mu(prev_out);
 			calc_batch_var(prev_out);
 			normalize_and_shift(prev_out, is_training);
 			// update moving mu and var
 			move_mu = move_mu * momentum + mu * (1 - momentum);
 			move_var = move_var * momentum + var * (1 - momentum);
-		}
-		else {
+#else
 			normalize_and_shift(prev_out, is_training);
-		}
+#endif
+    std::chrono::high_resolution_clock::time_point r2 = std::chrono::high_resolution_clock::now();
+    std::cout << "PARTY " << PARTY <<  ": Time Batchnorm (2D): " << double(std::chrono::duration_cast<std::chrono::microseconds>( r2 - r1 ).count())/1000000 << std::endl;
 	}
 
     template<typename T>
@@ -128,11 +131,12 @@ namespace simple_nn
 		}
 	}
 
+
     template<typename T>
 	void BatchNorm2d<T>::normalize_and_shift(const MatX<T>& prev_out, bool is_training)
 	{
-		const float* M = mu.data();
-		const float* V = var.data();
+		const T* M = mu.data();
+		const T* V = var.data();
 
 		if (!is_training) {
 			M = move_mu.data();
@@ -142,21 +146,141 @@ namespace simple_nn
 		for (int n = 0; n < batch; n++) {
 			for (int c = 0; c < ch; c++) {
 				int i = c + ch * n;
-				float m = M[c];
-				float s = std::sqrt(V[c] + eps);
-				float g = gamma[c];
-				float b = beta[c];
+				T m = M[c];
+				/* float s = std::sqrt(V[c] + eps); */
+                T s = V[c];
+				T g = gamma[c];
+				T b = beta[c];
 				for (int j = 0; j < hw; j++) {
-					xhat(i, j) = (prev_out(i, j) - m) / s;
-					this->output(i, j) = g * xhat(i, j) + b;
+					xhat(i, j) = (prev_out(i, j) - m).prepare_dot(s);
+                    xhat(i, j).mask_and_send_dot();
+				}
+			}
+		}
+        T::communicate();
+		for (int n = 0; n < batch; n++) {
+			for (int c = 0; c < ch; c++) {
+				int i = c + ch * n;
+				T m = M[c];
+				/* float s = std::sqrt(V[c] + eps); */
+                T s = V[c];
+				T g = gamma[c];
+				T b = beta[c];
+				for (int j = 0; j < hw; j++) {
+					xhat(i, j).complete_mult();
+					this->output(i, j) = g.prepare_dot(xhat(i, j));
+                    this->output(i, j).mask_and_send_dot();
+				}
+			}
+		}
+        T::communicate();
+		for (int n = 0; n < batch; n++) {
+			for (int c = 0; c < ch; c++) {
+				int i = c + ch * n;
+				T m = M[c];
+				/* float s = std::sqrt(V[c] + eps); */
+                T s = V[c];
+				T g = gamma[c];
+				T b = beta[c];
+				for (int j = 0; j < hw; j++) {
+					this->output(i, j).complete_mult();
+                    this->output(i, j) += b;
 				}
 			}
 		}
 	}
 
+
+    /* template<typename T> */
+	/* void BatchNorm2d<T>::normalize_and_shift(const MatX<T>& prev_out, bool is_training) */
+	/* { */
+/* #if IS_TRAINING == 1 */
+		/* const T* M = mu.data(); */
+		/* const T* V = var.data(); */
+/* #else */
+    /*     const T* M = move_mu.data(); */
+    /*     const T* V = move_var.data(); */
+/* #endif */
+
+		/* for (int n = 0; n < batch; n++) { */
+			/* for (int c = 0; c < ch; c++) { */
+				/* int i = c + ch * n; */
+				/* T m = M[c]; */
+				/* T s = V[c]; */
+				/* for (int j = 0; j < hw; j++) { */
+					/* xhat(i, j) = (prev_out(i, j) - m).prepare_dot(s); */
+/* #if TRUNC_APPROACH == 0 */
+    /*                 xhat(i, j).mask_and_send_dot(); */
+/* #else */
+    /*                 xhat(i, j).mask_and_send_dot_without_trunc(); */
+/* #endif */
+				/* } */
+			/* } */
+		/* } */
+    /*     T::communicate(); */
+		/* for (int n = 0; n < batch; n++) { */
+			/* for (int c = 0; c < ch; c++) { */
+				/* int i = c + ch * n; */
+				/* T g = gamma[c]; */
+				/* for (int j = 0; j < hw; j++) { */
+/* #if TRUNC_APPROACH == 0 */
+					/* xhat(i, j).complete_mult(); */
+					/* this->output(i, j) = g.prepare_dot(xhat(i, j)); */
+    /*                 this->output(i, j).mask_and_send_dot(); */
+/* #else */
+    /*                 xhat(i, j).complete_mult_without_trunc(); */
+/* #endif */
+    /*             } */
+    /*         } */
+    /*     } */
+/* #if TRUNC_APPROACH == 1 */
+    /*     trunc_2k_in_place(xhat.data(), batch * ch * hw); */
+    /*     for (int n = 0; n < batch; n++) { */
+    /*         for (int c = 0; c < ch; c++) { */
+    /*             int i = c + ch * n; */
+    /*             T g = gamma[c]; */
+    /*             for (int j = 0; j < hw; j++) { */
+    /*                 this->output(i, j) = g.prepare_dot(xhat(i, j)); */
+    /*                 this->output(i, j).mask_and_send_dot_without_trunc(); */
+    /*             } */
+    /*         } */
+    /*     } */
+/* #endif */
+
+    /*     T::communicate(); */
+		/* for (int n = 0; n < batch; n++) { */
+			/* for (int c = 0; c < ch; c++) { */
+				/* int i = c + ch * n; */
+				/* T b = beta[c]; */
+				/* for (int j = 0; j < hw; j++) { */
+/* #if TRUNC_APPROACH == 0 */
+    /*                 this->output(i, j).complete_mult(); */
+    /*                 this->output(i, j) += b; */
+/* #else */
+    /*                 this->output(i, j).complete_mult_without_trunc(); */
+/* #endif */
+    /*             } */
+    /*         } */
+    /*     } */
+/* #if TRUNC_APPROACH == 1 */
+    /*     trunc_2k_in_place(this->output.data(), batch * ch * hw); */
+    /*     for (int n = 0; n < batch; n++) { */
+    /*         for (int c = 0; c < ch; c++) { */
+    /*             int i = c + ch * n; */
+    /*             T b = beta[c]; */
+    /*             for (int j = 0; j < hw; j++) { */
+    /*                 this->output(i, j) += b; */
+    /*             } */
+    /*         } */
+    /*     } */
+/* #endif */
+    /* } */
+
+
     template<typename T>
 	void BatchNorm2d<T>::backward(const MatX<T>& prev_out, MatX<T>& prev_delta)
 	{
+#if IS_TRAINING == 1
 		// calc dxhat
 		for (int n = 0; n < batch; n++) {
 			for (int c = 0; c < ch; c++) {
@@ -203,11 +327,13 @@ namespace simple_nn
 				dbeta[c] += db;
 			}
 		}
+#endif
 	}
 
     template<typename T>
 	void BatchNorm2d<T>::update_weight(float lr, float decay)
 	{
+#if IS_TRAINING == 1
 		float t1 = (1 - (2 * lr * decay) / batch);
 		float t2 = lr / batch;
 		if (t1 != 1) {
@@ -216,8 +342,8 @@ namespace simple_nn
 		}
 		gamma -= t2 * dgamma;
 		beta -= t2 * dbeta;
+#endif
 	}
-
     template<typename T>
 	void BatchNorm2d<T>::zero_grad()
 	{

@@ -413,7 +413,73 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                     lc->bias[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]));
                 }
             }
+
+        else if (l->type == LayerType::BATCHNORM1D) {
+            BatchNorm1d<T>* lc = dynamic_cast<BatchNorm1d<T>*>(l);
+            int s1 = (int)lc->move_mu.size();
+            int s2 = (int)lc->move_var.size();
+            int s3 = (int)lc->gamma.size();
+            int s4 = (int)lc->beta.size();
+            tempMatrix1.resize(s1);
+            tempMatrix2.resize(s2);
+            tempMatrix3.resize(s3);
+            tempMatrix4.resize(s4);
+            fs.read((char*)tempMatrix1.data(), sizeof(float) * s1);
+            fs.read((char*)tempMatrix2.data(), sizeof(float) * s2);
+            fs.read((char*)tempMatrix3.data(), sizeof(float) * s3);
+            fs.read((char*)tempMatrix4.data(), sizeof(float) * s4);
+                for (int i = 0; i < s1; i++)
+                {
+                    lc->move_mu[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]));
+                } 
+                for (int i = 0; i < s2; i++)
+                {
+                    float var = 1 / std::sqrt(tempMatrix2[i] + 0.00001f);
+                    lc->move_var[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(var));
+                }
+                for (int i = 0; i < s3; i++)
+                {
+                    lc->gamma[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix3[i]));
+                }
+                for (int i = 0; i < s4; i++)
+                {
+                    lc->beta[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix4[i]));
+                }
         }
+        else if (l->type == LayerType::BATCHNORM2D) {
+            BatchNorm2d<T>* lc = dynamic_cast<BatchNorm2d<T>*>(l);
+            int s1 = (int)lc->move_mu.size();
+            int s2 = (int)lc->move_var.size();
+            int s3 = (int)lc->gamma.size();
+            int s4 = (int)lc->beta.size();
+            tempMatrix1.resize(s1);
+            tempMatrix2.resize(s2);
+            tempMatrix3.resize(s3);
+            tempMatrix4.resize(s4);
+                fs.read((char*)tempMatrix1.data(), sizeof(float) * s1);
+                fs.read((char*)tempMatrix2.data(), sizeof(float) * s2);
+                fs.read((char*)tempMatrix3.data(), sizeof(float) * s3);
+                fs.read((char*)tempMatrix4.data(), sizeof(float) * s4);
+                for (int i = 0; i < s1; i++)
+                {
+                    lc->move_mu[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]));
+                } 
+                for (int i = 0; i < s2; i++)
+                {
+                    float var = 1 / std::sqrt(tempMatrix2[i] + 0.00001f);
+                    lc->move_var[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(var));
+                }
+                for (int i = 0; i < s3; i++)
+                {
+                    lc->gamma[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix3[i]));
+                }
+                for (int i = 0; i < s4; i++)
+                {
+                    lc->beta[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix4[i]));
+                }
+
+        }
+    }
     /* } */
 }
 
@@ -488,6 +554,56 @@ void SimpleNN<T>::complete_read_params(fstream& fs)
                     lc->bias[i].template complete_receive_from<id>();
                 }
             }
+
+        else if (l->type == LayerType::BATCHNORM1D)
+        {
+                BatchNorm1d<T>* lc = dynamic_cast<BatchNorm1d<T>*>(l);
+				int s1 = (int)lc->move_mu.size();
+				int s2 = (int)lc->move_var.size();
+				int s3 = (int)lc->gamma.size();
+				int s4 = (int)lc->beta.size();
+                for (int i = 0; i < s1; i++)
+                {
+                    lc->move_mu[i].template complete_receive_from<id>();
+                }
+                for (int i = 0; i < s2; i++)
+                {
+                    lc->move_var[i].template complete_receive_from<id>();
+                }
+                for (int i = 0; i < s3; i++)
+                {
+                    lc->gamma[i].template complete_receive_from<id>();
+                }
+                for (int i = 0; i < s4; i++)
+                {
+                    lc->beta[i].template complete_receive_from<id>();
+                }
+			}
+        else if (l->type == LayerType::BATCHNORM2D)
+        {
+                BatchNorm2d<T>* lc = dynamic_cast<BatchNorm2d<T>*>(l);
+				int s1 = (int)lc->move_mu.size();
+				int s2 = (int)lc->move_var.size();
+				int s3 = (int)lc->gamma.size();
+				int s4 = (int)lc->beta.size();
+                for (int i = 0; i < s1; i++)
+                {
+                    lc->move_mu[i].template complete_receive_from<id>();
+                }
+                for (int i = 0; i < s2; i++)
+                {
+                    lc->move_var[i].template complete_receive_from<id>();
+                }
+                for (int i = 0; i < s3; i++)
+                {
+                    lc->gamma[i].template complete_receive_from<id>();
+                }
+                for (int i = 0; i < s4; i++)
+                {
+                    lc->beta[i].template complete_receive_from<id>();
+                }
+
+        }
     }
 }
 

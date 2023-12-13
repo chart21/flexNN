@@ -47,7 +47,7 @@ namespace simple_nn
 		epoch(2),
 		lr(0.01f),
 		decay(0.02f),
-		use_batchnorm(false),
+		use_batchnorm(true),
 		shuffle_train(true),
 		shuffle_test(false) {}
 

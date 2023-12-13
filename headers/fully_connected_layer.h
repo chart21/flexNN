@@ -63,7 +63,11 @@ namespace simple_nn
             for(int j = 0; j < W.cols(); ++j) {
                 sum += W(i, j).prepare_dot(prev_out(n, j));  // Use custom * and + operators
             }
+#if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
             sum.mask_and_send_dot_without_trunc(); // send immediately to utilize network better
+#else
+            sum.mask_and_send_dot();
+#endif
             this->output(n, i) = sum;
         }
             /* tmp_output2.row(n).noalias() = W * prev_out.row(n).transpose(); */
@@ -73,11 +77,21 @@ namespace simple_nn
             /* for (int i = 0; i < this->output.size(); i++) */ 
             /*     this->output(i).mask_and_send_dot(); */
             for (int i = 0; i < this->output.size(); i++) {
+#if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
                 this->output(i).complete_mult_without_trunc();
+#else
+                this->output(i).complete_mult();
+#endif
             }
 
 		    for (int n = 0; n < batch; n++) 
 			    this->output.row(n).noalias() += b;
+
+#if TRUNC_APPROACH == 1 && TRUNC_DELAYED == 0
+            trunc_2k_in_place(this->output.data(), this->output.size());
+#endif
+
+
             std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
             
             std::cout << "PARTY " << PARTY <<  ": Time for FC: " << double(std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count())/1000000 << "s, Output Size: " << this->output.size() << std::endl;

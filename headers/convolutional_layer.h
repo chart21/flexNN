@@ -102,25 +102,32 @@ namespace simple_nn
                     for(int k = 0; k < kernel.cols(); ++k) {
                         sum += kernel(i, k).prepare_dot(im_col(k, j));  // Use custom * and + operators
                     }
+#if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
                     sum.mask_and_send_dot_without_trunc(); // send immediately to utilize network better
-                    count++;
+#else
+                    sum.mask_and_send_dot();
+#endif
                     this->output(oc * n + i, j) = sum;
                 }
             }
 
         }
-            std::cout << "PARTY " << PARTY <<  ": Number of dot products: " << count << std::endl;
-            count = 0;
             T::communicate();
             for (int i = 0; i < this->output.size(); i++) {
-                count++;
+#if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
                 this->output(i).complete_mult_without_trunc();
+#else
+                this->output(i).complete_mult();
+#endif
             }
-            std::cout << "PARTY " << PARTY <<  ": Number of complete_mults: " << count << std::endl;
-            std::cout << "PARTY " << PARTY <<  ": output size: " << this->output.size() << std::endl;
 		for (int n = 0; n < batch; n++) {
 			this->output.block(oc * n, 0, oc, ohw).colwise() += bias;
 		}
+
+#if TRUNC_DELAYED == 0 && TRUNC_APPROACH == 1
+        trunc_2k_in_place(this->output.data(), this->output.size());
+#endif
+
             std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
             std::cout << "PARTY " << PARTY <<  ": Time for CONV: " << double(std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count())/1000000 << "s, Output Size: " << this->output.size() << std::endl;
 	}
