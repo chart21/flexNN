@@ -39,7 +39,7 @@ namespace simple_nn
 		data_dir("./SimpleNN/dataset"),
 		save_dir("./SimpleNN/model_zoo"),
 		pretrained(""),
-		pool("avg"),
+		pool("max"),
 		activ("relu"),
 		init("kaiming_uniform"),
 		loss("cross_entropy"),

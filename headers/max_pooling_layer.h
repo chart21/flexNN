@@ -97,6 +97,46 @@ namespace simple_nn
 		/* 		} */
 		/* 	} */
 		/* } */
+        
+            std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+		T* out = this->output.data();
+		const T* pout = prev_out.data();
+        auto max_candidates = new T[batch * ch * oh * ow * kh * kw];
+        int counter = 0;
+		for (int n = 0; n < batch; n++) {
+			for (int c = 0; c < ch; c++) {
+				for (int i = 0; i < oh; i++) {
+					for (int j = 0; j < ow; j++) {
+						/* int out_idx = j + ow * (i + oh * (c + ch * n)); */
+						/* T max = T(0)-T(1); // T(FLOAT_MIN); */
+						/* int max_idx = -1; */
+						for (int y = 0; y < kh; y++) {
+							for (int x = 0; x < kw; x++) {
+								int ii = i * stride + y;
+								int jj = j * stride + x;
+								int pout_idx = jj + iw * (ii + ih * (c + ch * n));
+								T val = T(0)-T(1); // T(FLOAT_MIN);
+								/* T val = T(FLOAT_MIN); */
+								if (ii >= 0 && ii < ih && jj >= 0 && jj < iw) {
+									val = pout[pout_idx];
+                                }
+                                max_candidates[counter++] = val;
+								/* if (val > max) { */
+								/* 	max = val; */
+								/* 	max_idx = pout_idx; */
+								/* } */
+							}
+						}
+						/* out[out_idx] = max; */
+						/* indices[out_idx] = max_idx; */
+					}
+				}
+			}
+		}
+    max_min_sint<0,BITLENGTH>(max_candidates, kh * kw, out, batch * ch * oh * ow, true);
+    delete[] max_candidates;
+            std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+            std::cout << "PARTY " << PARTY <<  ": Time for MaxPool: " << double(std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count())/1000000 << "s, Output Size: " << batch*ch*oh*ow << std::endl;
 	}
 
     template<typename T>
