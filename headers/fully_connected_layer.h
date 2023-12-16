@@ -15,8 +15,13 @@ namespace simple_nn
 		MatX<T> dW;
 		RowVecX<T> db;
 	public:
+#if PUBLIC_WEIGHTS == 1
+		MatX<UINT_TYPE> W;
+		RowVecX<UINT_TYPE> b;
+#else
 		MatX<T> W;
 		RowVecX<T> b;
+#endif
 		Linear(int in_features, int out_features, string option);
 		void set_layer(const vector<int>& input_shape) override;
 		void forward(const MatX<T>& prev_out, bool is_training) override;
@@ -61,13 +66,29 @@ namespace simple_nn
             for(int i = 0; i < W.rows(); ++i) {
             T sum = T(0);
             for(int j = 0; j < W.cols(); ++j) {
+
+#if PUBLIC_WEIGHTS == 0
                 sum += W(i, j).prepare_dot(prev_out(n, j));  // Use custom * and + operators
+#else
+                sum += prev_out(n, j).mult_public(W(i, j));  
+#endif
             }
+
+
+#if PUBLIC_WEIGHTS == 0
 #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
             sum.mask_and_send_dot_without_trunc(); // send immediately to utilize network better
 #else
             sum.mask_and_send_dot();
 #endif
+#else
+    #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
+    #else
+            sum.prepare_mult_public_fixed(1); //initiate truncation
+    #endif
+#endif
+
+
             this->output(n, i) = sum;
         }
             /* tmp_output2.row(n).noalias() = W * prev_out.row(n).transpose(); */
@@ -77,15 +98,28 @@ namespace simple_nn
             /* for (int i = 0; i < this->output.size(); i++) */ 
             /*     this->output(i).mask_and_send_dot(); */
             for (int i = 0; i < this->output.size(); i++) {
+#if PUBLIC_WEIGHTS == 0
 #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
                 this->output(i).complete_mult_without_trunc();
 #else
                 this->output(i).complete_mult();
 #endif
+#else
+    #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
+    #else
+                this->output(i).complete_public_mult_fixed();
+    #endif
+#endif
+                /* this->output(i) += b(i); //added to replace lower code */
             }
 
-		    for (int n = 0; n < batch; n++) 
-			    this->output.row(n).noalias() += b;
+		    /* for (int n = 0; n < batch; n++) */ 
+			    /* this->output.row(n).noalias() += b; */
+            for (int n = 0; n < batch; n++) 
+                for(int i = 0; i < this->output.cols(); ++i)
+                    this->output(n, i) += b(i);
+            
+
 
 #if TRUNC_APPROACH == 1 && TRUNC_DELAYED == 0
             trunc_2k_in_place(this->output.data(), this->output.size());
@@ -103,17 +137,17 @@ namespace simple_nn
 	{
 		// dW = delta(Vector) * prev_out(RowVector)
 		// db = delta
-		for (int n = 0; n < batch; n++) {
-			dW.noalias() += this->delta.row(n).transpose() * prev_out.row(n);
-			db.noalias() += this->delta.row(n);
-		}
+		/* for (int n = 0; n < batch; n++) { */
+		/* 	dW.noalias() += this->delta.row(n).transpose() * prev_out.row(n); */
+		/* 	db.noalias() += this->delta.row(n); */
+		/* } */
 
-		// prev_delta = W.T * delta(Vector)
-		if (!this->is_first) {
-			for (int n = 0; n < batch; n++) {
-				prev_delta.row(n).noalias() = W.transpose() * this->delta.row(n).transpose();
-			}
-		}
+		/* // prev_delta = W.T * delta(Vector) */
+		/* if (!this->is_first) { */
+		/* 	for (int n = 0; n < batch; n++) { */
+		/* 		prev_delta.row(n).noalias() = W.transpose() * this->delta.row(n).transpose(); */
+		/* 	} */
+		/* } */
 	}
 
     template<typename T>

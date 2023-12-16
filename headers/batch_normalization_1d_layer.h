@@ -20,10 +20,17 @@ namespace simple_nn
 		RowVecX<T> sum1;
 		RowVecX<T> sum2;
 	public:
+#if PUBLIC_WEIGHTS == 1
+        RowVecX<UINT_TYPE> move_mu;
+        RowVecX<UINT_TYPE> move_var;
+        RowVecX<UINT_TYPE> gamma;
+        RowVecX<UINT_TYPE> beta;
+#else
 		RowVecX<T> move_mu;
 		RowVecX<T> move_var;
 		RowVecX<T> gamma;
 		RowVecX<T> beta;
+#endif
 		BatchNorm1d(float eps = 0.00001f, float momentum = 0.9f);
 		void set_layer(const vector<int>& input_shape) override;
 		void forward(const MatX<T>& prev_out, bool is_training) override;
@@ -116,32 +123,49 @@ namespace simple_nn
     template<typename T>
 	void BatchNorm1d<T>::normalize_and_shift(const MatX<T>& prev_out, bool is_training)
 	{
+#if IS_TRAINING == 1
 		const T* M = mu.data();
 		const T* V = var.data();
-
-		if (!is_training) {
-			M = move_mu.data();
-			V = move_var.data();
-		}
+#else
+        const auto* M = move_mu.data();
+        const auto* V = move_var.data();
+#endif
+		/* if (!is_training) { */
+		/* 	M = move_mu.data(); */
+		/* 	V = move_var.data(); */
+		/* } */
 
 		for (int i = 0; i < batch; i++) {
 			for (int j = 0; j < n_feat; j++) {
+#if PUBLIC_WEIGHTS == 0
 				xhat(i, j) = (prev_out(i, j) - M[j]).prepare_dot( V[j]);
                 xhat(i, j).mask_and_send_dot();
+#else
+                xhat(i, j) = (prev_out(i, j) - M[j]) * V[j];
+#endif
 			}
 		}
         T::communicate();
 		for (int i = 0; i < batch; i++) {
 			for (int j = 0; j < n_feat; j++) {
+#if PUBLIC_WEIGHTS == 0
 				xhat(i, j).complete_mult();
 				this->output(i, j) = gamma[j].prepare_dot(xhat(i, j));
                 this->output(i, j).mask_and_send_dot();
+#else
+                xhat(i, j).complete_public_mult_fixed();
+                this->output(i, j) = xhat(i, j) * gamma[j];
+#endif
 			}
 		}
         T::communicate();
 		for (int i = 0; i < batch; i++) {
 			for (int j = 0; j < n_feat; j++) {
+#if PUBLIC_WEIGHTS == 0
 				this->output(i, j).complete_mult();
+#else
+                this->output(i, j).complete_public_mult_fixed();
+#endif
                 this->output(i, j) += beta[j];
 			}
 		}

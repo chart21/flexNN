@@ -24,8 +24,13 @@ namespace simple_nn
 		VecX<T> dbias;
 		MatX<T> im_col;
 	public:
+#if PUBLIC_WEIGHTS == 1
+        MatX<UINT_TYPE> kernel;
+        VecX<UINT_TYPE> bias;
+#else
 		MatX<T> kernel;
 		VecX<T> bias;
+#endif
 		Conv2d(int in_channels, int out_channels, int kernel_size, int padding,
 			string option);
 		void set_layer(const vector<int>& input_shape) override;
@@ -100,12 +105,24 @@ namespace simple_nn
                 for(int j = 0; j < ohw; ++j) {
                     T sum = T(0);
                     for(int k = 0; k < kernel.cols(); ++k) {
+#if PUBLIC_WEIGHTS == 0
                         sum += kernel(i, k).prepare_dot(im_col(k, j));  // Use custom * and + operators
+#else 
+                        sum += im_col(k, j).mult_public(kernel(i, k));
+#endif
+
                     }
+#if PUBLIC_WEIGHTS == 0
 #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
                     sum.mask_and_send_dot_without_trunc(); // send immediately to utilize network better
 #else
                     sum.mask_and_send_dot();
+#endif
+#else
+    #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
+    #else
+                    sum.prepare_mult_public_fixed(1); //initiate truncation
+    #endif
 #endif
                     this->output(oc * n + i, j) = sum;
                 }
@@ -114,14 +131,27 @@ namespace simple_nn
         }
             T::communicate();
             for (int i = 0; i < this->output.size(); i++) {
+#if PUBLIC_WEIGHTS == 0
 #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
                 this->output(i).complete_mult_without_trunc();
 #else
                 this->output(i).complete_mult();
 #endif
+#else
+    #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
+    #else
+                this->output(i).complete_public_mult_fixed();
+    #endif
+#endif
+                /* this->output(i) += bias(i % oc); // replace lower code */
             }
 		for (int n = 0; n < batch; n++) {
-			this->output.block(oc * n, 0, oc, ohw).colwise() += bias;
+			/* this->output.block(oc * n, 0, oc, ohw).colwise() += bias; */
+            for(int i = 0; i < oc; ++i) {
+                for(int j = 0; j < ohw; ++j) {
+                    this->output(oc * n + i, j) += bias(i);
+                }
+            }
 		}
 
 #if TRUNC_DELAYED == 0 && TRUNC_APPROACH == 1
@@ -135,20 +165,20 @@ namespace simple_nn
     template<typename T>
 	void Conv2d<T>::backward(const MatX<T>& prev_out, MatX<T>& prev_delta)
 	{
-		for (int n = 0; n < batch; n++) {
-			const T* im = prev_out.data() + (ic * ihw) * n;
-			im2col(im, ic, ih, iw, kh, 1, pad, im_col.data());
-			dkernel += this->delta.block(oc * n, 0, oc, ohw) * im_col.transpose(); // TODO: change to prepare dot/ manual looping, no Eigen
-			dbias += this->delta.block(oc * n, 0, oc, ohw).rowwise().sum();
-		}
+		/* for (int n = 0; n < batch; n++) { */
+		/* 	const T* im = prev_out.data() + (ic * ihw) * n; */
+		/* 	im2col(im, ic, ih, iw, kh, 1, pad, im_col.data()); */
+		/* 	dkernel += this->delta.block(oc * n, 0, oc, ohw) * im_col.transpose(); // TODO: change to prepare dot/ manual looping, no Eigen */
+		/* 	dbias += this->delta.block(oc * n, 0, oc, ohw).rowwise().sum(); */
+		/* } */
 
-		if (!this->is_first) {
-			for (int n = 0; n < batch; n++) {
-				T* begin = prev_delta.data() + ic * ihw * n;
-				im_col = kernel.transpose() * this->delta.block(oc * n, 0, oc, ohw);
-				col2im(im_col.data(), ic, ih, iw, kh, 1, pad, begin);
-			}
-		}
+		/* if (!this->is_first) { */
+		/* 	for (int n = 0; n < batch; n++) { */
+		/* 		T* begin = prev_delta.data() + ic * ihw * n; */
+		/* 		im_col = kernel.transpose() * this->delta.block(oc * n, 0, oc, ohw); */
+		/* 		col2im(im_col.data(), ic, ih, iw, kh, 1, pad, begin); */
+		/* 	} */
+		/* } */
 	}
 
     template<typename T>

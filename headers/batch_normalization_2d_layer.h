@@ -23,10 +23,17 @@ namespace simple_nn
 	public:
 		MatX<T> xhat;
 		MatX<T> dxhat;
+#if PUBLIC_WEIGHTS == 1
+        VecX<UINT_TYPE> move_mu;
+        VecX<UINT_TYPE> move_var;
+        VecX<UINT_TYPE> gamma;
+        VecX<UINT_TYPE> beta;
+#else
 		VecX<T> move_mu;
 		VecX<T> move_var;
 		VecX<T> gamma;
 		VecX<T> beta;
+#endif
 		BatchNorm2d(float eps = 0.00001f, float momentum = 0.9f);
 		void set_layer(const vector<int>& input_shape) override;
 		void forward(const MatX<T>& prev_out, bool is_training) override;
@@ -135,25 +142,35 @@ namespace simple_nn
     template<typename T>
 	void BatchNorm2d<T>::normalize_and_shift(const MatX<T>& prev_out, bool is_training)
 	{
-		const T* M = mu.data();
-		const T* V = var.data();
+		/* const T* M = mu.data(); */
+		/* const T* V = var.data(); */
 
-		if (!is_training) {
-			M = move_mu.data();
-			V = move_var.data();
-		}
-
+		/* if (!is_training) { */
+		/* 	M = move_mu.data(); */
+		/* 	V = move_var.data(); */
+		/* } */
+        #if IS_TRAINING == 1
+        const T* M = mu.data();
+        const T* V = var.data();
+        #else
+        const auto* M = move_mu.data();
+        const auto* V = move_var.data();
+        #endif
 		for (int n = 0; n < batch; n++) {
 			for (int c = 0; c < ch; c++) {
 				int i = c + ch * n;
-				T m = M[c];
+				auto m = M[c];
 				/* float s = std::sqrt(V[c] + eps); */
-                T s = V[c];
-				T g = gamma[c];
-				T b = beta[c];
+                auto s = V[c];
+				/* T g = gamma[c]; */
+				/* T b = beta[c]; */
 				for (int j = 0; j < hw; j++) {
+#if PUBLIC_WEIGHTS == 0
 					xhat(i, j) = (prev_out(i, j) - m).prepare_dot(s);
                     xhat(i, j).mask_and_send_dot();
+#else
+                    xhat(i, j) = (prev_out(i, j) - m) * s;
+#endif
 				}
 			}
 		}
@@ -161,15 +178,20 @@ namespace simple_nn
 		for (int n = 0; n < batch; n++) {
 			for (int c = 0; c < ch; c++) {
 				int i = c + ch * n;
-				T m = M[c];
+				/* T m = M[c]; */
 				/* float s = std::sqrt(V[c] + eps); */
-                T s = V[c];
-				T g = gamma[c];
-				T b = beta[c];
+                /* T s = V[c]; */
+				auto g = gamma[c];
+				/* T b = beta[c]; */
 				for (int j = 0; j < hw; j++) {
+#if PUBLIC_WEIGHTS == 0
 					xhat(i, j).complete_mult();
 					this->output(i, j) = g.prepare_dot(xhat(i, j));
                     this->output(i, j).mask_and_send_dot();
+#else
+                    xhat(i, j).complete_public_mult_fixed();
+                    this->output(i, j) = xhat(i, j) * g;
+#endif
 				}
 			}
 		}
@@ -177,13 +199,17 @@ namespace simple_nn
 		for (int n = 0; n < batch; n++) {
 			for (int c = 0; c < ch; c++) {
 				int i = c + ch * n;
-				T m = M[c];
+				/* T m = M[c]; */
 				/* float s = std::sqrt(V[c] + eps); */
-                T s = V[c];
-				T g = gamma[c];
-				T b = beta[c];
+                /* T s = V[c]; */
+				/* T g = gamma[c]; */
+				auto b = beta[c];
 				for (int j = 0; j < hw; j++) {
+#if PUBLIC_WEIGHTS == 0
 					this->output(i, j).complete_mult();
+#else
+                    this->output(i, j).complete_public_mult_fixed();
+#endif
                     this->output(i, j) += b;
 				}
 			}
