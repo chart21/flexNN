@@ -1,6 +1,7 @@
 #pragma once
 #include "layer.h"
 #include <chrono>
+#include <linux/limits.h>
 
 namespace simple_nn
 {
@@ -143,17 +144,22 @@ namespace simple_nn
 void forward(const MatX<T>& prev_out, bool is_training) override
 {
         this->output.setZero();
-
-    if (!is_training) { // If not in training mode, compute argmax
-        for (int n = 0; n < this->batch; n++) {
-            int offset = this->height * n;
-            const T* begin = prev_out.data() + offset;
-            
+#if IS_TRAINING == 0
+        /* for (int n = 0; n < this->batch; n++) { //TODO: Parallelize argmaxes of all batches to save communication rounds */
+            /* int offset = this->height * n; */
+            /* const T* begin = prev_out.data() + offset; */
+            /* const T* begin = prev_out.data(); */            
+            /* const T* end = prev_out.data() + this->out_block_size; */
+        
             // Using argMax which sets the max value to 1 in the output
-            T::argMax(begin, begin + this->height, this->output.data() + offset);
-        }
-    } else { // If in training mode, compute softmax
-        for (int n = 0; n < this->batch; n++) {
+            std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+            argmax_argmin_sint<0,BITLENGTH>(prev_out.data(), this->height, this->output.data(), this->batch, true);
+            std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+            std::cout << "PARTY " << PARTY <<  ": Time for Argmax (total): " << double(std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count())/1000000 << "s, Output Size: " << this->out_block_size << std::endl;
+            /* ARG_MAX(begin, begin + this->height, this->output.data() + offset); */
+            /* } */    
+#else
+            for (int n = 0; n < this->batch; n++) {
             int offset = this->height * n;
             const T* begin = prev_out.data() + offset;
             
@@ -165,7 +171,8 @@ void forward(const MatX<T>& prev_out, bool is_training) override
                                return (e - max).exp() / sum;
                            });
         }
-    }
+#endif
+    
     
         /* this->output.setZero(); */
 
