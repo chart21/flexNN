@@ -33,7 +33,7 @@ namespace simple_nn
 		MatX<T> kernel;
 		VecX<T> bias;
 #endif
-		Conv2d(int in_channels, int out_channels, int kernel_size, int stride = 0, int padding = 0, bool use_bias = "true",
+		Conv2d(int in_channels, int out_channels, int kernel_size, int stride, int padding, bool use_bias = "true",
 			string option = "kaiming_uniform");
 		void set_layer(const vector<int>& input_shape) override;
 		void forward(const MatX<T>& prev_out, bool is_training) override;
@@ -110,17 +110,23 @@ namespace simple_nn
 	void Conv2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
         const int TILE_SIZE = 64;
+            const int m = oc;
+            const int f = kernel.cols();
+            const int p = ohw;
+        for(int i = 0; i < this->output.size(); ++i)
+            this->output(i) = T(0);
 		for (int n = 0; n < batch; n++) {
 			const T* im = prev_out.data() + (ic * ihw) * n;
 			im2col(im, ic, ih, iw, kh, stride, pad, im_col.data());
 
             auto A = kernel.data();
-            auto B = im_col.transpose().data();
+            /* auto B = im_col.transpose().data(); */
+            MatX<T> BM = im_col.transpose();
+            auto B = BM.data();
             auto C = this->output.data() + (oc * ohw) * n;
 
-            const int m = oc;
-            const int f = kernel.cols();
-            const int p = ohw;
+
+
 
   for (int i = 0; i < m; i += TILE_SIZE) {
       /* _mm_prefetch(A + i * f, _MM_HINT_T0); */
@@ -131,18 +137,20 @@ namespace simple_nn
             for (int k = 0; k < f; k += TILE_SIZE) {
                 int k_max = std::min(k + TILE_SIZE, f);
                 for (int ii = i; ii < i_max; ++ii) {
+                    const int iip = ii*p;
+                    const int iif = ii*f;
                     /* const int row2 = ii*f+kk; */
-                    auto temp = T(0);
                     for (int jj = j; jj < j_max; ++jj) {
+                    auto temp = T(0);
                         for (int kk = k; kk < k_max; ++kk) {
                             /* _mm_prefetch(C + ii * p + jj, _MM_HINT_T0); */
 #if PUBLIC_WEIGHTS == 0
-                            temp += A[ii*f+kk].prepare_dot(B[jj*f + kk]);
+                            temp += A[iif+kk].prepare_dot(B[jj*f + kk]);
 #else
-                            temp += A[ii*f+kk].mult_public(B[jj*f + kk]);
+                            temp += A[iif+kk].mult_public(B[jj*f + kk]);
 #endif
                         }
-                        C[ii*p + jj] += temp;
+                        C[iip + jj] += temp;
                     }
                 }
             }
@@ -162,29 +170,82 @@ namespace simple_nn
                     C[row + jj].prepare_mult_public_fixed(1); //initiate truncation
     #endif
 #endif
+                    /* C[row + jj].mask_and_send_dot(); */
                 }
             }
+            /*     } */
+            /* } */
         }
     }
 
 }
+/* for (int n = 0; n < batch; n++) { */
+/*     auto C = this->output.data() + (oc * ohw) * n; */
+/*   for (int i = 0; i < m; i += TILE_SIZE) { */
+/*       int i_max = std::min(i + TILE_SIZE, m); */
+/*       for (int j = 0; j < p; j += TILE_SIZE) { */
+/*           int j_max = std::min(j + TILE_SIZE, p); */
+/*             for (int ii = i; ii < i_max; ++ii) { */
+/*                 int row = ii*p; */
+/*                 for (int jj = j; jj < j_max; ++jj) { */
+/*                     C[row + jj].mask_and_send_dot(); */
+/*                 } */
+/*             } */
+/*             } */
+/*             } */
+/* } */
+/* for(int i = 0; i < this->output.size(); ++i) */
+/*     this->output(i).mask_and_send_dot(); */
 
             T::communicate();
-            for (int i = 0; i < this->output.size(); i++) {
+for (int n = 0; n < batch; n++) {
+    auto C = this->output.data() + (oc * ohw) * n;
+  for (int i = 0; i < m; i += TILE_SIZE) {
+      int i_max = std::min(i + TILE_SIZE, m);
+      for (int j = 0; j < p; j += TILE_SIZE) {
+          int j_max = std::min(j + TILE_SIZE, p);
+            for (int ii = i; ii < i_max; ++ii) {
+                const int row = ii*p;
+                for (int jj = j; jj < j_max; ++jj) {
+                    /* C[row + jj].complete_mult(); */
 #if PUBLIC_WEIGHTS == 0
 #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-                this->output(i).complete_mult_without_trunc();
+                C[row+jj].complete_mult_without_trunc();
 #else
-                this->output(i).complete_mult();
+                C[row+jj].complete_mult();
 #endif
 #else
     #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
     #else
-                this->output(i).complete_public_mult_fixed();
+                C[row+jj].complete_mult_public_fixed();
     #endif
 #endif
-                /* this->output(i) += bias(i % oc); // replace lower code */
+                }
             }
+            }
+            }
+}
+
+/* for(int i = 0; i < this->output.size(); ++i) */
+/*     this->output(i).complete_mult(); */
+
+    /* for (int n = 0; n < batch; n++) { */
+    /* auto C = this->output.data() + (oc * ohw) * n; */
+  /* for (int i = 0; i < m; i += TILE_SIZE) { */
+    /*   /1* _mm_prefetch(A + i * f, _MM_HINT_T0); *1/ */
+    /*     int i_max = std::min(i + TILE_SIZE, m); */
+    /*     for (int j = 0; j < p; j += TILE_SIZE) { */
+    /*         /1* _mm_prefetch(B + j * f, _MM_HINT_T0); *1/ */
+    /*         int j_max = std::min(j + TILE_SIZE, p); */
+    /*             for (int ii = i; ii < i_max; ++ii) { */
+    /*                 /1* const int row2 = ii*f+kk; *1/ */
+    /*                 for (int jj = j; jj < j_max; ++jj) { */
+    /*             /1* this->output(i) += bias(i % oc); // replace lower code *1/ */
+    /*         } */
+    /*             } */
+    /*     } */
+  /* } */
+    /* } */
     if(use_bias)
 		for (int n = 0; n < batch; n++)
             for(int i = 0; i < oc; ++i) 

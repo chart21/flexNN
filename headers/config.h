@@ -14,10 +14,13 @@ namespace simple_nn
 		std::string data_dir;
 		std::string save_dir;
 		std::string pretrained;
+        std::string image_file;
+        std::string label_file;
 		std::string pool;
 		std::string activ;
 		std::string init;
 		std::string loss;
+
 		int batch;
 		int epoch;
 		float lr;
@@ -34,11 +37,11 @@ namespace simple_nn
 	};
 
 	Config::Config() :
-		mode("train"),
+		mode("test"),
 		model("lenet5"),
 		data_dir("./SimpleNN/dataset"),
 		save_dir("./SimpleNN/model_zoo"),
-		pretrained(""),
+		pretrained("lenet5.pth"),
 		pool("max"),
 		activ("relu"),
 		init("kaiming_uniform"),

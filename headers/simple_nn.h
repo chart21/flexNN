@@ -874,13 +874,13 @@ void SimpleNN<T>::complete_read_params()
 #else
         orthogonalize_arithmetic(tmp,&tmp2,1);
 #endif
-        test_XX(i / (BASE_DIV), j).template prepare_receive_from<P_0>(tmp2);
+        test_XX(i / (BASE_DIV), j).template prepare_receive_from<DATAOWNER>(tmp2);
         }
     }
     T::communicate();
     for (int j = 0; j < test_XX.cols(); ++j) {
         for (int i = 0; i < test_XX.rows(); ++i) {
-            test_XX(i, j).template complete_receive_from<P_0>();
+            test_XX(i, j).template complete_receive_from<DATAOWNER>();
         }
     }
 			forward(test_XX, false);

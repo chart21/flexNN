@@ -54,8 +54,8 @@ namespace simple_nn
 		ih = input_shape[2];
 		iw = input_shape[3];
 		ihw = ih * iw;
-		oh = calc_outsize(ih, kh, stride, 0);
-		ow = calc_outsize(iw, kw, stride, 0);
+		oh = calc_outsize(ih, kh, stride, pad);
+		ow = calc_outsize(iw, kw, stride, pad);
 		ohw = oh * ow;
 
 		this->output.resize(batch * ch, ohw);
@@ -66,7 +66,6 @@ namespace simple_nn
     template<typename T>
 	void AvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
     /* if(current_phase == 1) */
     /* std::cout << "AVG Pool ..." << std::endl; */
         T::communicate();

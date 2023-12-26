@@ -135,7 +135,7 @@ VecXi read_custom_labels(const string& filename, int n_imgs) {
         uint32_t label;
         file.read(reinterpret_cast<char*>(&label), sizeof(uint32_t));
         labels[i] = label;
-        std::cout << label << std::endl;
+        /* std::cout << label << std::endl; */
     }
 
     file.close();
