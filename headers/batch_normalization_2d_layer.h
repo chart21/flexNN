@@ -83,18 +83,17 @@ namespace simple_nn
 		dbeta.resize(ch);
 		sum1.resize(ch);
 		sum2.resize(ch);
-
+#if IS_TRAINING == 1
 		move_mu.setZero();
 		move_var.setZero();
 		gamma.setConstant(1.f);
 		beta.setZero();
+#endif
 	}
 
     template<typename T>
 	void BatchNorm2d<T>::forward(const MatX<T>& prev_out, bool is_training)
     {
-        std::cout << "PARTY " << PARTY <<  ": Batchnorm (2D) forward ..." << std::endl;
-    std::chrono::high_resolution_clock::time_point r1 = std::chrono::high_resolution_clock::now();
 #if IS_TRAINING == 1
 			calc_batch_mu(prev_out);
 			calc_batch_var(prev_out);
@@ -105,8 +104,6 @@ namespace simple_nn
 #else
 			normalize_and_shift(prev_out, is_training);
 #endif
-    std::chrono::high_resolution_clock::time_point r2 = std::chrono::high_resolution_clock::now();
-    std::cout << "PARTY " << PARTY <<  ": Time Batchnorm (2D): " << double(std::chrono::duration_cast<std::chrono::microseconds>( r2 - r1 ).count())/1000000 << std::endl;
 	}
 
     template<typename T>

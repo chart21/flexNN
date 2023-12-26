@@ -19,9 +19,10 @@ namespace simple_nn
 		int kh;
 		int kw;
 		int stride;
+        int pad;
 		// MatX<T> im_col;
 	public:
-		AvgPool2d(int kernel_size, int stride);
+		AvgPool2d(int kernel_size, int stride, int pad = 0);
 		void set_layer(const vector<int>& input_shape) override;
 		void forward(const MatX<T>& prev_out, bool is_training) override;
 		void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override;
@@ -30,7 +31,7 @@ namespace simple_nn
 	};
 
     template<typename T>
-	AvgPool2d<T>::AvgPool2d(int kernel_size, int stride) :
+	AvgPool2d<T>::AvgPool2d(int kernel_size, int stride, int pad) :
 		Layer<T>(LayerType::AVGPOOL2D),
 		batch(0),
 		ch(0),
@@ -42,7 +43,8 @@ namespace simple_nn
 		ohw(0),
 		kh(kernel_size),
 		kw(kernel_size),
-		stride(stride) {}
+		stride(stride),
+        pad(pad){}
 
     template<typename T>
 	void AvgPool2d<T>::set_layer(const vector<int>& input_shape)
@@ -79,8 +81,8 @@ namespace simple_nn
 						int out_idx = j + ow * (i + oh * (c + ch * n));
 						for (int y = 0; y < kh; y++) {
 							for (int x = 0; x < kw; x++) {
-								int ii = i * stride + y;
-								int jj = j * stride + x;
+								int ii = i * stride + y - pad;
+								int jj = j * stride + x - pad;
 								int in_idx = jj + iw * (ii + ih * (c + ch * n));
 								if (ii >= 0 && ii < ih && jj >= 0 && jj < iw) {
 									out[out_idx] += pout[in_idx];
@@ -159,8 +161,6 @@ namespace simple_nn
         T::communicate();
     #endif
 #endif
-            std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-            std::cout << "PARTY " << PARTY <<  ": Time for Pooling: " << double(std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count()/1000000) << "s, Output Size: " << this->output.size() << std::endl; 
 	}
 
     template<typename T>
@@ -176,8 +176,8 @@ namespace simple_nn
 						int cur_idx = j + ow * (i + oh * (c + ch * n));
 						for (int y = 0; y < kh; y++) {
 							for (int x = 0; x < kw; x++) {
-								int ii = y + stride * i;
-								int jj = x + stride * j;
+								int ii = y + stride * i - pad;
+								int jj = x + stride * j - pad;
 								int prev_idx = jj + iw * (ii + ih * (c + ch * n));
 								if (ii >= 0 && ii < ih && jj >= 0 && jj < iw) {
 									/* pd[prev_idx] = d[cur_idx] / denominator; */

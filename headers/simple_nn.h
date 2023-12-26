@@ -3,6 +3,7 @@
 #include "convolutional_layer.h"
 #include "max_pooling_layer.h"
 #include "average_pooling_layer.h"
+#include "adaptive_average_pooling_layer.h"
 #include "activation_layer.h"
 #include "batch_normalization_1d_layer.h"
 #include "batch_normalization_2d_layer.h"
@@ -17,13 +18,13 @@ namespace simple_nn
     template<typename T>
 	class SimpleNN
 	{
-	private:
+	protected:
 		vector<Layer<T>*> net;
 		Optimizer* optim;
 		Loss<T>* loss;
 	public:
 		void add(Layer<T>* layer);
-		void compile(vector<int> input_shape, Optimizer* optim=nullptr, Loss<T>* loss=nullptr);
+		virtual void compile(vector<int> input_shape, Optimizer* optim=nullptr, Loss<T>* loss=nullptr);
 		void fit(const DataLoader<T>& train_loader, int epochs, const DataLoader<T>& valid_loader);
 		void save(string save_dir, string fname);
         template<int id>
@@ -31,7 +32,7 @@ namespace simple_nn
         template<typename F>
 		void evaluate(const DataLoader<F>& data_loader);
 	private:
-		void forward(const MatX<T>& X, bool is_training);
+		virtual void forward(const MatX<T>& X, bool is_training);
 		void classify(const MatX<T>& output, VecXi& classified);
 		/* void error_criterion(const VecXi& classified, const VecXi& labels, T& error_acc); */
 		void error_criterion(const VecXi& classified, const VecXi& labels, float& error_acc);
@@ -43,7 +44,7 @@ namespace simple_nn
         template<int id>
         void prepare_read_params(fstream& fs);
         template<int id>
-        void complete_read_params(fstream& fs);
+        void complete_read_params();
 		void write_or_read_params(fstream& fs, string mode);
 	};
 
@@ -155,7 +156,9 @@ namespace simple_nn
 			if (l == 0) net[l]->forward(X, is_training);
 			else 
             {
+                start_timer();
                 net[l]->forward(net[l - 1]->output, is_training);
+                stop_timer(toString(net[l]->type));
 /* #if IS_TRAINING == 0 */
 /*                 if (l > 1) */
 /*                 { */
@@ -293,12 +296,15 @@ namespace simple_nn
 		fstream fin(path, ios::in | ios::binary);
 
 		if (!fin) {
-			cout << path << " does not exist." << endl;
-			exit(1);
+			cout << path << " does not exist. Setting dummy weights." << endl;
+			/* exit(1); */
 		}
 
 		int total_params;
-		fin.read((char*)&total_params, sizeof(int));
+        if(!(!fin))
+            fin.read((char*)&total_params, sizeof(int));
+        else
+            total_params = count_params();
 
 		if (total_params != count_params()) {
 			cout << "The number of parameters does not match." << endl;
@@ -308,13 +314,11 @@ namespace simple_nn
         prepare_read_params<id>(fin);
 #if PUBLIC_WEIGHTS == 0
         T::communicate();
-        complete_read_params<id>(fin);
+        complete_read_params<id>();
 #endif
 		/* write_or_read_params(fin, "read"); */
 
 		fin.close();
-
-		cout << "Pretrained weights are loaded." << endl;
 
 		return;
 	}
@@ -382,8 +386,11 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                 /* fs.write((char*)tempMatrix2.data(), sizeof(float) * s2); */
             /* } */
             /* else { */
+            if(!(!fs))
+            {
                 fs.read((char*)tempMatrix1.data(), sizeof(float) * s1);
                 fs.read((char*)tempMatrix2.data(), sizeof(float) * s2);
+            }
                 for (int i = 0; i < s1; i++) 
                 {
 #if PUBLIC_WEIGHTS == 0
@@ -422,8 +429,12 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                 /* fs.write((char*)tempMatrix2.data(), sizeof(float) * s2); */
             /* } */
             /* else { */
+            if(!(!fs))
+            {
                 fs.read((char*)tempMatrix1.data(), sizeof(float) * s1);
                 fs.read((char*)tempMatrix2.data(), sizeof(float) * s2);
+            }
+
                 for (int i = 0; i < s1; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
@@ -452,10 +463,13 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
             tempMatrix2.resize(s2);
             tempMatrix3.resize(s3);
             tempMatrix4.resize(s4);
+            if(!(!fs))
+            {
             fs.read((char*)tempMatrix1.data(), sizeof(float) * s1);
             fs.read((char*)tempMatrix2.data(), sizeof(float) * s2);
             fs.read((char*)tempMatrix3.data(), sizeof(float) * s3);
             fs.read((char*)tempMatrix4.data(), sizeof(float) * s4);
+            }
                 for (int i = 0; i < s1; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
@@ -500,10 +514,13 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
             tempMatrix2.resize(s2);
             tempMatrix3.resize(s3);
             tempMatrix4.resize(s4);
+            if(!(!fs))
+            {
                 fs.read((char*)tempMatrix1.data(), sizeof(float) * s1);
                 fs.read((char*)tempMatrix2.data(), sizeof(float) * s2);
                 fs.read((char*)tempMatrix3.data(), sizeof(float) * s3);
                 fs.read((char*)tempMatrix4.data(), sizeof(float) * s4);
+            }
                 for (int i = 0; i < s1; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
@@ -582,7 +599,7 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
     
 template <typename T>
 template <int id>
-void SimpleNN<T>::complete_read_params(fstream& fs)
+void SimpleNN<T>::complete_read_params()
 {
     for (Layer<T>* l : net) {
 
@@ -872,19 +889,26 @@ void SimpleNN<T>::complete_read_params(fstream& fs)
 #endif
 			classify(net.back()->output, classified);
 			error_criterion(classified, Y, error_acc);
-			
+		if(current_phase == 1)	
+        {
 			cout << "[Batch: " << setw(3) << n + 1 << "/" << n_batch << "]";
 			if (n + 1 < n_batch) {
 				cout << "\r";
 			}
+            
 		}
+        }
 		system_clock::time_point end = system_clock::now();
 		duration<float> sec = end - start;
 
-		cout << fixed << setprecision(2);
+	    if(current_phase == 1)	
+        {
+        cout << fixed << setprecision(2);
 		cout << " - t: " << sec.count() << "s";
 		cout << " - error(" << batch * n_batch << " images): ";
+
 		/* cout << error_acc.reveal() / (batch * n_batch * DATTYPE) * 100 << "%" << endl; */
 		cout << error_acc / (batch * n_batch) * 100 << "%" << endl;
+        }
 	}
 }

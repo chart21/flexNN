@@ -19,6 +19,8 @@ namespace simple_nn
 		int kh;
 		int kw;
 		int pad;
+        int stride;
+        bool use_bias;
 		string option;
 		MatX<T> dkernel;
 		VecX<T> dbias;
@@ -31,8 +33,8 @@ namespace simple_nn
 		MatX<T> kernel;
 		VecX<T> bias;
 #endif
-		Conv2d(int in_channels, int out_channels, int kernel_size, int padding,
-			string option);
+		Conv2d(int in_channels, int out_channels, int kernel_size, int stride = 0, int padding = 0, bool use_bias = "true",
+			string option = "kaiming_uniform");
 		void set_layer(const vector<int>& input_shape) override;
 		void forward(const MatX<T>& prev_out, bool is_training) override;
 		void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override;
@@ -46,7 +48,9 @@ namespace simple_nn
 		int in_channels,
 		int out_channels,
 		int kernel_size,
+        int stride,
 		int padding,
+        bool use_bias,
 		string option
 	) :
 		Layer<T>(LayerType::CONV2D),
@@ -61,7 +65,9 @@ namespace simple_nn
 		ohw(0),
 		kh(kernel_size),
 		kw(kernel_size),
+        stride(stride),
 		pad(padding),
+        use_bias(use_bias),
 		option(option) {}
 
     template<typename T>
@@ -72,63 +78,97 @@ namespace simple_nn
 		ih = input_shape[2];
 		iw = input_shape[3];
 		ihw = ih * iw;
-		oh = calc_outsize(ih, kh, 1, pad);
-		ow = calc_outsize(iw, kw, 1, pad);
+		oh = calc_outsize(ih, kh, stride, pad);
+		ow = calc_outsize(iw, kw, stride, pad);
 		ohw = oh * ow;
 
 		this->output.resize(batch * oc, ohw);
 		this->delta.resize(batch * oc, ohw);
 		kernel.resize(oc, ic * kh * kw);
 		dkernel.resize(oc, ic * kh * kw);
-		bias.resize(oc);
-		dbias.resize(oc);
+        if(use_bias)
+        {
+            bias.resize(oc);
+            dbias.resize(oc);}
+        else
+        {
+            bias.resize(0);
+            dbias.resize(0);
+        }
+
 		im_col.resize(ic * kh * kw, ohw);
 
+	    #if IS_TRAINING == 1	
 		int fan_in = kh * kw * ic;
 		int fan_out = kh * kw * oc;
-		init_weight(kernel, fan_in, fan_out, option);
+        init_weight(kernel, fan_in, fan_out, option);
 		bias.setZero();
+        #endif
 	}
 
     template<typename T>
 	void Conv2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
-        /* if(current_phase == 1) */
-        /*     std::cout << "Conv2d ..." << std::endl; */
-            std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-            int count = 0;
+        const int TILE_SIZE = 64;
 		for (int n = 0; n < batch; n++) {
 			const T* im = prev_out.data() + (ic * ihw) * n;
-			im2col(im, ic, ih, iw, kh, 1, pad, im_col.data());
-			/* tmp_output.block(oc * n, 0, oc, ohw).noalias() = tmp_kernel * tmp_im_col; */
-            for(int i = 0; i < oc; ++i) {
-                for(int j = 0; j < ohw; ++j) {
-                    T sum = T(0);
-                    for(int k = 0; k < kernel.cols(); ++k) {
-#if PUBLIC_WEIGHTS == 0
-                        sum += kernel(i, k).prepare_dot(im_col(k, j));  // Use custom * and + operators
-#else 
-                        sum += im_col(k, j).mult_public(kernel(i, k));
-#endif
+			im2col(im, ic, ih, iw, kh, stride, pad, im_col.data());
 
+            auto A = kernel.data();
+            auto B = im_col.transpose().data();
+            auto C = this->output.data() + (oc * ohw) * n;
+
+            const int m = oc;
+            const int f = kernel.cols();
+            const int p = ohw;
+
+  for (int i = 0; i < m; i += TILE_SIZE) {
+      /* _mm_prefetch(A + i * f, _MM_HINT_T0); */
+        int i_max = std::min(i + TILE_SIZE, m);
+        for (int j = 0; j < p; j += TILE_SIZE) {
+            /* _mm_prefetch(B + j * f, _MM_HINT_T0); */
+            int j_max = std::min(j + TILE_SIZE, p);
+            for (int k = 0; k < f; k += TILE_SIZE) {
+                int k_max = std::min(k + TILE_SIZE, f);
+                for (int ii = i; ii < i_max; ++ii) {
+                    /* const int row2 = ii*f+kk; */
+                    auto temp = T(0);
+                    for (int jj = j; jj < j_max; ++jj) {
+                        for (int kk = k; kk < k_max; ++kk) {
+                            /* _mm_prefetch(C + ii * p + jj, _MM_HINT_T0); */
+#if PUBLIC_WEIGHTS == 0
+                            temp += A[ii*f+kk].prepare_dot(B[jj*f + kk]);
+#else
+                            temp += A[ii*f+kk].mult_public(B[jj*f + kk]);
+#endif
+                        }
+                        C[ii*p + jj] += temp;
                     }
+                }
+            }
+
+            for (int ii = i; ii < i_max; ++ii) {
+                const int row = ii*p;
+                for (int jj = j; jj < j_max; ++jj) {
 #if PUBLIC_WEIGHTS == 0
 #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-                    sum.mask_and_send_dot_without_trunc(); // send immediately to utilize network better
+                    C[row + jj].mask_and_send_dot_without_trunc();
 #else
-                    sum.mask_and_send_dot();
+                    C[row + jj].mask_and_send_dot();
 #endif
 #else
     #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
     #else
-                    sum.prepare_mult_public_fixed(1); //initiate truncation
+                    C[row + jj].prepare_mult_public_fixed(1); //initiate truncation
     #endif
 #endif
-                    this->output(oc * n + i, j) = sum;
                 }
             }
-
         }
+    }
+
+}
+
             T::communicate();
             for (int i = 0; i < this->output.size(); i++) {
 #if PUBLIC_WEIGHTS == 0
@@ -145,21 +185,17 @@ namespace simple_nn
 #endif
                 /* this->output(i) += bias(i % oc); // replace lower code */
             }
-		for (int n = 0; n < batch; n++) {
-			/* this->output.block(oc * n, 0, oc, ohw).colwise() += bias; */
-            for(int i = 0; i < oc; ++i) {
-                for(int j = 0; j < ohw; ++j) {
+    if(use_bias)
+		for (int n = 0; n < batch; n++)
+            for(int i = 0; i < oc; ++i) 
+                for(int j = 0; j < ohw; ++j) 
                     this->output(oc * n + i, j) += bias(i);
-                }
-            }
-		}
+		/* this->output.block(oc * n, 0, oc, ohw).colwise() += bias; */
 
 #if TRUNC_DELAYED == 0 && TRUNC_APPROACH == 1
         trunc_2k_in_place(this->output.data(), this->output.size());
 #endif
 
-            std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-            std::cout << "PARTY " << PARTY <<  ": Time for CONV: " << double(std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count())/1000000 << "s, Output Size: " << this->output.size() << std::endl;
 	}
 
     template<typename T>

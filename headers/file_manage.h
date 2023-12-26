@@ -84,4 +84,68 @@ namespace simple_nn
 
 		return label;
 	}
+
+
+MatXf read_dummy_images(int n_imgs, int channel, int height, int width) {
+    int image_size = channel * height * width;
+    return MatXf::Zero(n_imgs, image_size);
+}
+
+
+VecXi read_dummy_labels(int n_imgs) {
+    return VecXi::Zero(n_imgs);
+}
+
+
+MatXf read_custom_images(const string& filename, int n_imgs, int channel, int height, int width) {
+    ifstream file(filename, ios::binary);
+
+    if (!file.is_open()) {
+        cout << "Unable to open file, defining dummy images instead: " << filename << endl;
+        return read_dummy_images(n_imgs, channel, height, width);
+    }
+
+    int image_size = channel * height * width;
+    MatXf images(n_imgs, image_size);
+
+    for (int img = 0; img < n_imgs; ++img) {
+        for (int i = 0; i < image_size; ++i) {
+            float pixel;
+            file.read(reinterpret_cast<char*>(&pixel), sizeof(float));
+            images(img,i) = pixel;
+        }
+    }
+
+    file.close();
+    return images;
+}
+
+
+VecXi read_custom_labels(const string& filename, int n_imgs) {
+    ifstream file(filename, ios::binary);
+
+    if (!file.is_open()) {
+        cout << "Unable to open file, defining dummy labels instead: " << filename << endl;
+        return read_dummy_labels(n_imgs);
+    }
+    
+    VecXi labels(n_imgs);
+
+    for (int i = 0; i < n_imgs; ++i) {
+        uint32_t label;
+        file.read(reinterpret_cast<char*>(&label), sizeof(uint32_t));
+        labels[i] = label;
+        std::cout << label << std::endl;
+    }
+
+    file.close();
+    return labels;
+}
+
+
+
+
+
+
+
 }

@@ -1,3 +1,4 @@
 *.pth
 model_zoo/
-datasets/
+dataset/
+*.bin
