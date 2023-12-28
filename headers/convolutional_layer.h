@@ -110,9 +110,6 @@ namespace simple_nn
 	void Conv2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
         const int TILE_SIZE = 64;
-            const int m = oc;
-            const int f = kernel.cols();
-            const int p = ohw;
         for(int i = 0; i < this->output.size(); ++i)
             this->output(i) = T(0);
 		for (int n = 0; n < batch; n++) {
@@ -120,7 +117,6 @@ namespace simple_nn
 			im2col(im, ic, ih, iw, kh, stride, pad, im_col.data());
 
             auto A = kernel.data();
-            /* auto B = im_col.transpose().data(); */
             MatX<T> BM = im_col.transpose();
             auto B = BM.data();
             auto C = this->output.data() + (oc * ohw) * n;
@@ -128,6 +124,9 @@ namespace simple_nn
 
 
 
+            const int m = oc;
+            const int p = ohw;
+            const int f = kernel.cols();
   for (int i = 0; i < m; i += TILE_SIZE) {
       /* _mm_prefetch(A + i * f, _MM_HINT_T0); */
         int i_max = std::min(i + TILE_SIZE, m);
@@ -141,13 +140,14 @@ namespace simple_nn
                     const int iif = ii*f;
                     /* const int row2 = ii*f+kk; */
                     for (int jj = j; jj < j_max; ++jj) {
+                        const int jjf = jj*f;
                     auto temp = T(0);
                         for (int kk = k; kk < k_max; ++kk) {
                             /* _mm_prefetch(C + ii * p + jj, _MM_HINT_T0); */
 #if PUBLIC_WEIGHTS == 0
-                            temp += A[iif+kk].prepare_dot(B[jj*f + kk]);
+                            temp += A[iif+kk].prepare_dot(B[jjf + kk]);
 #else
-                            temp += A[iif+kk].mult_public(B[jj*f + kk]);
+                            temp += A[iif+kk].mult_public(B[jjf + kk]);
 #endif
                         }
                         C[iip + jj] += temp;
@@ -200,6 +200,8 @@ namespace simple_nn
             T::communicate();
 for (int n = 0; n < batch; n++) {
     auto C = this->output.data() + (oc * ohw) * n;
+            const int m = oc;
+            const int p = ohw;
   for (int i = 0; i < m; i += TILE_SIZE) {
       int i_max = std::min(i + TILE_SIZE, m);
       for (int j = 0; j < p; j += TILE_SIZE) {
@@ -248,10 +250,10 @@ for (int n = 0; n < batch; n++) {
     /* } */
     if(use_bias)
 		for (int n = 0; n < batch; n++)
-            for(int i = 0; i < oc; ++i) 
-                for(int j = 0; j < ohw; ++j) 
-                    this->output(oc * n + i, j) += bias(i);
-		/* this->output.block(oc * n, 0, oc, ohw).colwise() += bias; */
+            this->output.block(oc * n, 0, oc, ohw).colwise() += bias;
+            /* for(int i = 0; i < oc; ++i) */ 
+            /*     for(int j = 0; j < ohw; ++j) */ 
+            /*         this->output(oc * n + i, j) += bias(i); */
 
 #if TRUNC_DELAYED == 0 && TRUNC_APPROACH == 1
         trunc_2k_in_place(this->output.data(), this->output.size());

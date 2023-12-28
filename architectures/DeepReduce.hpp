@@ -149,13 +149,13 @@ class ReducedNet : public SimpleNN<T>
 {
     private:
         int in_planes;
-        int alpha;
-        int rho;
+        float alpha;
+        float rho;
+        const int block_expansion = 1;
         vector<int> identity_layers;
         vector<string> identity_layers_type;
     public:
         ReducedNet(int num_blocks[4], bool isCulled[4], bool isThinned[2], int num_classes, float alpha = 1.0, float rho = 1.0, string option = "kaiming_uniform") {
-            const int block_expansion = 1;
             this->alpha = alpha;
             this->rho = rho;
             this->in_planes = int(64*alpha);
@@ -178,38 +178,36 @@ class ReducedNet : public SimpleNN<T>
 		
 
 
-        void add_block(int in_planes, int planes, string option, bool isCulled = false, bool isTopThinned = false, bool isBottomThinned = false, int stride = 1) {
-            const int expansion = 1;
+        void add_block(int planes, string option, bool isCulled = false, bool isTopThinned = false, bool isBottomThinned = false, int stride = 1) {
             this->add_identity_layer("Identity_Store");
             this->add(new Conv2d<T>(in_planes, planes, 3, stride, 1, false, option));
             this->add(new BatchNorm2d<T>());
-            if (!isCulled && !isTopThinned) {
+            if ( (!isCulled) && (!isTopThinned)) {
                 this->add(new ReLU<T>());
             }
             this->add(new Conv2d<T>(planes, planes, 3, 1, 1, false, option));
             this->add(new BatchNorm2d<T>());
-            if (stride != 1 || in_planes != planes * expansion) {
+            if (stride != 1 || (in_planes != (planes * block_expansion))) {
                 this->add_identity_layer("Identity_OP_Start");
-                this->add(new Conv2d<T>(in_planes, planes * expansion, 1, stride, 0, false, option));
+                this->add(new Conv2d<T>(in_planes, planes * block_expansion, 1, stride, 0, false, option));
                 this->add(new BatchNorm2d<T>());
                 this->add_identity_layer("Identity_OP_Finish");
             }
             this->add_identity_layer("Identity_ADD");
-            if (!isCulled && !isBottomThinned) {
+            if ((!isCulled) && (!isBottomThinned)) {
                 this->add(new ReLU<T>());
             }
         }
 
-        void make_layer(int num_blocks, int planes, bool isCulled, bool isTopThinned, bool isBottomThinned, int stride, string option) {
-            const int block_expansion = 1;
+        void make_layer(int lnum_blocks, int planes, bool isCulled, bool isTopThinned, bool isBottomThinned, int stride, string option) {
             vector<int> strides;
             strides.push_back(stride);
-            for (int i = 0; i < num_blocks - 1; i++) {
+            for (int i = 0; i < lnum_blocks - 1; i++) {
                 strides.push_back(1);
             }
             for (int stride : strides) {
-                this->add_block(this->in_planes, planes, option, isCulled, isTopThinned, isBottomThinned, stride);
-                this->in_planes = planes * block_expansion;
+                add_block(planes, option, isCulled, isTopThinned, isBottomThinned, stride);
+                in_planes = planes * block_expansion;
             }
         }
 
