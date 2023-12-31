@@ -838,6 +838,7 @@ void SimpleNN<T>::complete_read_params()
 	void SimpleNN<T>::evaluate(const DataLoader<F>& data_loader)
 	{
 		int batch = data_loader.input_shape()[0];
+        int ch = data_loader.input_shape()[1];
 		int n_batch = data_loader.size();
         /* std::cout << "batch: " << batch << "\n"; */
         /* std::cout << "n_batch: " << n_batch << "\n"; */
@@ -856,27 +857,31 @@ void SimpleNN<T>::complete_read_params()
 			/* MatX<float> test_X = data_loader.get_x(n); //Adjusted because of sint */
             MatX<T> test_XX(test_X.rows()/(BASE_DIV), test_X.cols());
     for (int j = 0; j < test_X.cols(); j++) {
-        for (int i = 0; i < test_X.rows(); i+=BASE_DIV) {
-            if(i+BASE_DIV > test_X.rows()) {
+        for (int i = 0; i < test_X.rows(); i+=BASE_DIV*ch) {
+            if(i+BASE_DIV*ch > test_X.rows()) {
                 break; // do not process leftovers
             }
-        alignas(sizeof(DATATYPE)) UINT_TYPE tmp[BASE_DIV];
+        alignas(sizeof(DATATYPE)) UINT_TYPE tmp[ch][BASE_DIV];
 #if BASETYPE == 1
-        alignas(sizeof(DATATYPE)) DATATYPE tmp2[BITLENGTH];
+        alignas(sizeof(DATATYPE)) DATATYPE tmp2[ch][BITLENGTH];
 #else
-        alignas(sizeof(DATATYPE)) DATATYPE tmp2;
+        alignas(sizeof(DATATYPE)) DATATYPE tmp2[ch];
 #endif
-        for (int k = 0; k < BASE_DIV; ++k) {
-            tmp[k] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(test_X(i+k, j));
-        }
+        for( int c = 0; c < ch; c++)
+            for (int k = 0; k < BASE_DIV; ++k) {
+                tmp[c][k] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(test_X(i+k*ch+c, j));
+            }
+        for( int c = 0; c < ch; c++)
+        {
 #if BASETYPE == 1
-        orthogonalize_arithmetic(tmp, tmp2);
+        orthogonalize_arithmetic(tmp[c], tmp2[c]);
 #else
-        orthogonalize_arithmetic(tmp,&tmp2,1);
+        orthogonalize_arithmetic(tmp[c],&tmp2[c],1);
 #endif
-        test_XX(i / (BASE_DIV), j).template prepare_receive_from<DATAOWNER>(tmp2);
+            test_XX(i / (BASE_DIV) + c, j).template prepare_receive_from<DATAOWNER>(tmp2[c]);
         }
     }
+}
     T::communicate();
     for (int j = 0; j < test_XX.cols(); ++j) {
         for (int i = 0; i < test_XX.rows(); ++i) {

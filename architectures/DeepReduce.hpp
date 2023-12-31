@@ -159,6 +159,7 @@ class ReducedNet : public SimpleNN<T>
             this->alpha = alpha;
             this->rho = rho;
             this->in_planes = int(64*alpha);
+            std::cout << "alpha, rho, int(1/rho), int(64*alpha), blcok_expansion: " << alpha << ", " << rho << ", " << int(1/rho) << ", " << int(64*alpha) << ", " << block_expansion << std::endl;
             this->add(new Conv2d<T>(3, this->in_planes, 3, int(1/rho), 1, false, option));
             this->add(new BatchNorm2d<T>());
             this->make_layer(num_blocks[0], int(64*alpha), isCulled[0], isThinned[0], isThinned[1], 1, option);
@@ -179,6 +180,7 @@ class ReducedNet : public SimpleNN<T>
 
 
         void add_block(int planes, string option, bool isCulled = false, bool isTopThinned = false, bool isBottomThinned = false, int stride = 1) {
+            std::cout << "planes, isCulled, isTopThinned, isBottomThinned, stride" << planes << ", " << isCulled << ", " << isTopThinned << ", " << isBottomThinned << ", " << stride << std::endl;
             this->add_identity_layer("Identity_Store");
             this->add(new Conv2d<T>(in_planes, planes, 3, stride, 1, false, option));
             this->add(new BatchNorm2d<T>());
@@ -206,6 +208,7 @@ class ReducedNet : public SimpleNN<T>
                 strides.push_back(1);
             }
             for (int stride : strides) {
+                std::cout << "stride, in_planes, planes, block_expansion" << stride << ", " << in_planes << ", " << planes << ", " << block_expansion << std::endl;
                 add_block(planes, option, isCulled, isTopThinned, isBottomThinned, stride);
                 in_planes = planes * block_expansion;
             }

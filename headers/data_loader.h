@@ -119,4 +119,5 @@ namespace simple_nn
 		}
 		return batch_y;
 	}
+
 }
