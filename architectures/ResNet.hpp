@@ -225,8 +225,10 @@ public:
                     }
 
             }
+                start_timer();
                 this->net[l]->forward(out, is_training);
                 out = this->net[l]->output;
+                stop_timer(toString(this->net[l]->type));
             }
         }
 

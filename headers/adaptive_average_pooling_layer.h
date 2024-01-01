@@ -91,6 +91,7 @@ void AdaptiveAvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
             }
         }
     }
+    T::communicate();
 #if TRUNC_APPROACH == 0
         for (int i = 0; i < this->output.size(); i++)
             out[i].complete_public_mult_fixed();

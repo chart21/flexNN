@@ -84,8 +84,9 @@ namespace simple_nn
 		vector<int> rand_num(batch * n_batch);
 		std::iota(rand_num.begin(), rand_num.end(), 0);
 
-		if (shuffle) {
-			unsigned seed = (unsigned)std::chrono::system_clock::now().time_since_epoch().count();
+		if (shuffle) { //TODO: Test deterministic seed
+		    unsigned seed = 0;	
+            /* unsigned seed = (unsigned)std::chrono::system_clock::now().time_since_epoch().count(); */ 
 			std::shuffle(rand_num.begin(), rand_num.end(), std::default_random_engine(seed));
 		}
 

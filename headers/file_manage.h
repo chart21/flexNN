@@ -108,6 +108,17 @@ MatXf read_custom_images(const string& filename, int n_imgs, int channel, int he
     int image_size = channel * height * width;
     MatXf images(n_imgs, image_size);
 
+    /* for(int k = 0; k < process_offset; k++) { */
+    /*     for (int img = 0; img < n_imgs; ++img) { */
+    /*         for (int i = 0; i < image_size; ++i) { */
+    /*             /1* file.ignore(sizeof(float)); *1/ */
+    /*         float pixel; */
+    /*         file.read(reinterpret_cast<char*>(&pixel), sizeof(float)); */
+    /*         images(img,i) = pixel; */
+            
+                
+    /* }}} */ 
+    /* for(int k = 0; k < process_offset+1; k++) { */
     for (int img = 0; img < n_imgs; ++img) {
         for (int i = 0; i < image_size; ++i) {
             float pixel;
@@ -115,7 +126,7 @@ MatXf read_custom_images(const string& filename, int n_imgs, int channel, int he
             images(img,i) = pixel;
         }
     }
-
+    /* } */
     file.close();
     return images;
 }
@@ -131,13 +142,21 @@ VecXi read_custom_labels(const string& filename, int n_imgs) {
     
     VecXi labels(n_imgs);
 
+    /* for(int i = 0; i < process_offset+1; i++) { */
+    /*     for (int img = 0; img < n_imgs; ++img) { */
+    /*         /1* file.ignore(sizeof(uint32_t)); *1/ */
+    /* uint32_t label; */
+    /* file.read(reinterpret_cast<char*>(&label), sizeof(uint32_t)); */
+    /* labels[i] = label; */
+    /* }} */
+    /* for(int k = 0; k < process_offset+1; k++) { */
     for (int i = 0; i < n_imgs; ++i) {
-        uint32_t label;
-        file.read(reinterpret_cast<char*>(&label), sizeof(uint32_t));
-        labels[i] = label;
+    uint32_t label;
+    file.read(reinterpret_cast<char*>(&label), sizeof(uint32_t));
+    labels[i] = label;
         /* std::cout << label << std::endl; */
     }
-
+    /* } */
     file.close();
     return labels;
 }
