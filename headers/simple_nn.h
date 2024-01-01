@@ -158,6 +158,7 @@ namespace simple_nn
             {
                 start_timer();
                 net[l]->forward(net[l - 1]->output, is_training);
+                /* std::string = toString(net[l]->type) + " " + net[l]->output_shape(); */
                 stop_timer(toString(net[l]->type));
 /* #if IS_TRAINING == 0 */
 /*                 if (l > 1) */
@@ -856,6 +857,8 @@ void SimpleNN<T>::complete_read_params()
 #if JIT_VEC == 1 
 			/* MatX<float> test_X = data_loader.get_x(n); //Adjusted because of sint */
             MatX<T> test_XX(test_X.rows()/(BASE_DIV), test_X.cols());
+
+
     for (int j = 0; j < test_X.cols(); j++) {
         for (int i = 0; i < test_X.rows(); i+=BASE_DIV*ch) {
             if(i+BASE_DIV*ch > test_X.rows()) {
@@ -873,21 +876,28 @@ void SimpleNN<T>::complete_read_params()
             }
         for( int c = 0; c < ch; c++)
         {
+#if DATAOWNER == PSELF
 #if BASETYPE == 1
         orthogonalize_arithmetic(tmp[c], tmp2[c]);
 #else
         orthogonalize_arithmetic(tmp[c],&tmp2[c],1);
+
 #endif
+#endif
+#if DATAOWNER != -1
             test_XX(i / (BASE_DIV) + c, j).template prepare_receive_from<DATAOWNER>(tmp2[c]);
+#endif
         }
     }
 }
+#if DATAOWNER != -1
     T::communicate();
     for (int j = 0; j < test_XX.cols(); ++j) {
         for (int i = 0; i < test_XX.rows(); ++i) {
             test_XX(i, j).template complete_receive_from<DATAOWNER>();
         }
     }
+#endif
 			forward(test_XX, false);
 #else
 			forward(test_X, false);
