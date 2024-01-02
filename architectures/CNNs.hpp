@@ -158,10 +158,12 @@ class LeNet : public SimpleNN<T>
     public:
     LeNet(int num_classes)
     {
-        this->add(new Conv2d<T>(1,6,5,0,0));
+        /* this->add(new Conv2d<T>(1,6,5,0,0)); */
+        this->add(new Conv2d<T>(1,6,5,1,2));
         this->add(new ReLU<T>());
         this->add(new AvgPool2d<T>(2,2));
-        this->add(new Conv2d<T>(6,16,5,0,0));
+        /* this->add(new Conv2d<T>(6,16,5,0,0)); */
+        this->add(new Conv2d<T>(6,16,5,1,0));
         this->add(new ReLU<T>());
         this->add(new AvgPool2d<T>(2,2));
         this->add(new Flatten<T>());
@@ -275,4 +277,100 @@ class AlexNet_32 : public SimpleNN<T>
     }
 };
 
+/* template<typename T> */
+/* void load_model(const Config& cfg, SimpleNN<T>& model) */
+/* { */
+/* 	if (cfg.model == "lenet5") { */
+/* 		for (int i = 0; i < 6; i++) { */
+/* 			if (i < 2) { */
+/* 				if (i == 0) { */
+/* 					model.add(new Conv2d<T>(1, 6, 5, 1, 2, true, cfg.init)); */
+/* 				} */
+/* 				else { */
+/* 					model.add(new Conv2d<T>(6, 16, 5, 1, 0, true, cfg.init)); */
+/* 				} */
+/* 				if (cfg.use_batchnorm) { */
+/* 					model.add(new BatchNorm2d<T>); */
+/* 				} */
+/* 				if (cfg.activ == "relu") { */
+/* 					model.add(new ReLU<T>); */
+/* 				} */
+/* 				/1* else { *1/ */
+/* 				/1* 	model.add(new Tanh<T>); *1/ */
+/* 				/1* } *1/ */
+/* 				if (cfg.pool == "max") { */
+/* 					model.add(new MaxPool2d<T>(2, 2)); */
+/* 				} */
+/* 				else { */
+/* 					model.add(new AvgPool2d<T>(2, 2)); */
+/* 				} */
+/* 			} */
+/* 			else if (i == 2) { */
+/* 				model.add(new Flatten<T>); */
+/* 			} */
+/* 			else if (i < 5) { */
+/* 				if (i == 3) { */
+/* 					model.add(new Linear<T>(400, 120, cfg.init)); */
+/* 				} */
+/* 				else { */
+/* 					model.add(new Linear<T>(120, 84, cfg.init)); */
+/* 				} */
+/* 				if (cfg.use_batchnorm) { */
+/* 					model.add(new BatchNorm1d<T>); */
+/* 				} */
+/* 				if (cfg.activ == "relu") { */
+/* 					model.add(new ReLU<T>); */
+/* 				} */
+/* 				/1* else { *1/ */
+/* 				/1* 	model.add(new Tanh<T>); *1/ */
+/* 				/1* } *1/ */
+/* 			} */
+/* 			else { */
+/* 				model.add(new Linear<T>(84, 10, cfg.init)); */
+/* 				if (cfg.use_batchnorm) { */
+/* 					model.add(new BatchNorm1d<T>); */
+/* 				} */
+/* 				if (cfg.loss == "cross_entropy") { */
+/* 					model.add(new Softmax<T>); */
+/* 				} */
+/* 				/1* else { *1/ */
+/* 				/1* 	model.add(new Sigmoid<T>); *1/ */
+/* 				/1* } *1/ */
+/* 			} */
+/* 		} */
+/* 	} */
+/* 	else { */
+/* 		for (int i = 0; i < 3; i++) { */
+/* 			if (i < 2) { */
+/* 				if (i == 0) { */
+/* 					model.add(new Linear<T>(784, 500, cfg.init)); */
+/* 				} */
+/* 				else { */
+/* 					model.add(new Linear<T>(500, 150, cfg.init)); */
+/* 				} */
+/* 				if (cfg.use_batchnorm) { */
+/* 					model.add(new BatchNorm1d<T>); */
+/* 				} */
+/* 				if (cfg.activ == "relu") { */
+/* 					model.add(new ReLU<T>); */
+/* 				} */
+/* 				/1* else { *1/ */
+/* 				/1* 	model.add(new Tanh<T>); *1/ */
+/* 				/1* } *1/ */
+/* 			} */
+/* 			else { */
+/* 				model.add(new Linear<T>(150, 10, cfg.init)); */
+/* 				if (cfg.use_batchnorm) { */
+/* 					model.add(new BatchNorm1d<T>); */
+/* 				} */
+/* 				/1* if (cfg.loss == "cross_entropy") { *1/ */
+/* 				/1* 	model.add(new Softmax<T>); *1/ */
+/* 				/1* } *1/ */
+/* 				/1* else { *1/ */
+/* 				/1* 	model.add(new Sigmoid<T>); *1/ */
+/* 				/1* } *1/ */
+/* 			} */
+/* 		} */
+/* 	} */
+/* } */
 

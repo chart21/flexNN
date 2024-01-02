@@ -44,6 +44,16 @@ namespace simple_nn
 				s = 0.3104802479305348f;
 			}
 
+            for(int k = 0; k < process_offset; k++) {
+			for (int n = 0; n < n_imgs; n++) {
+				for (int i = 0; i < n_rows; i++) {
+					for (int j = 0; j < n_cols; j++) {
+                            fin.ignore(sizeof(unsigned char));
+                        }
+                    }
+                }
+            }
+
 			for (int n = 0; n < n_imgs; n++) {
 				for (int i = 0; i < n_rows; i++) {
 					for (int j = 0; j < n_cols; j++) {
@@ -69,6 +79,11 @@ namespace simple_nn
 		string path = data_dir + "/" + fname;
 		ifstream fin(path);
 		if (fin.is_open()) {
+            for(int k = 0; k < process_offset; k++) {
+                for (int i = 0; i < n_imgs; ++i) {
+                    fin.ignore(sizeof(unsigned char));
+                }
+            }
 			for (int i = 0; i < n_imgs + 8; ++i) {
 				unsigned char temp = 0;
 				fin.read((char*)&temp, sizeof(temp));
@@ -87,7 +102,7 @@ namespace simple_nn
 
 
 MatXf read_dummy_images(int n_imgs, int channel, int height, int width) {
-    int image_size = channel * height * width;
+    int image_size = height * width * channel;
     return MatXf::Zero(n_imgs, image_size);
 }
 
@@ -105,20 +120,20 @@ MatXf read_custom_images(const string& filename, int n_imgs, int channel, int he
         return read_dummy_images(n_imgs, channel, height, width);
     }
 
-    int image_size = channel * height * width;
+    /* int image_size = channel * height * width; */
+    int image_size = height * width * channel;
     MatXf images(n_imgs, image_size);
 
-    /* for(int k = 0; k < process_offset; k++) { */
-    /*     for (int img = 0; img < n_imgs; ++img) { */
-    /*         for (int i = 0; i < image_size; ++i) { */
-    /*             /1* file.ignore(sizeof(float)); *1/ */
-    /*         float pixel; */
-    /*         file.read(reinterpret_cast<char*>(&pixel), sizeof(float)); */
-    /*         images(img,i) = pixel; */
+    for(int k = 0; k < process_offset; k++) {
+        for (int img = 0; img < n_imgs; ++img) {
+            for (int i = 0; i < image_size; ++i) {
+                file.ignore(sizeof(float));
+            /* float pixel; */
+            /* file.read(reinterpret_cast<char*>(&pixel), sizeof(float)); */
+            /* images(img,i) = pixel; */
             
                 
-    /* }}} */ 
-    /* for(int k = 0; k < process_offset+1; k++) { */
+    }}} 
     for (int img = 0; img < n_imgs; ++img) {
         for (int i = 0; i < image_size; ++i) {
             float pixel;
@@ -126,7 +141,6 @@ MatXf read_custom_images(const string& filename, int n_imgs, int channel, int he
             images(img,i) = pixel;
         }
     }
-    /* } */
     file.close();
     return images;
 }
@@ -142,21 +156,19 @@ VecXi read_custom_labels(const string& filename, int n_imgs) {
     
     VecXi labels(n_imgs);
 
-    /* for(int i = 0; i < process_offset+1; i++) { */
-    /*     for (int img = 0; img < n_imgs; ++img) { */
-    /*         /1* file.ignore(sizeof(uint32_t)); *1/ */
+    for(int i = 0; i < process_offset; i++) {
+        for (int img = 0; img < n_imgs; ++img) {
+            file.ignore(sizeof(uint32_t));
     /* uint32_t label; */
     /* file.read(reinterpret_cast<char*>(&label), sizeof(uint32_t)); */
     /* labels[i] = label; */
-    /* }} */
-    /* for(int k = 0; k < process_offset+1; k++) { */
+    }}
+    
     for (int i = 0; i < n_imgs; ++i) {
     uint32_t label;
     file.read(reinterpret_cast<char*>(&label), sizeof(uint32_t));
     labels[i] = label;
-        /* std::cout << label << std::endl; */
     }
-    /* } */
     file.close();
     return labels;
 }

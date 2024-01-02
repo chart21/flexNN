@@ -906,9 +906,9 @@ void SimpleNN<T>::complete_read_params()
 			error_criterion(classified, Y, error_acc);
 		if(current_phase == 1)	
         {
-			cout << "[Batch: " << setw(3) << n + 1 << "/" << n_batch << "]";
+			cout <<  "P" << PARTY << ", PID" << process_offset << ": " << "[Batch: " << setw(3) << (n + 1) + n_batch*process_offset << "/" << n_batch*(process_offset+1) << "]";
 			if (n + 1 < n_batch) {
-				cout << "\r";
+				cout << "\r" << flush;
 			}
             
 		}
