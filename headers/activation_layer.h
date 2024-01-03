@@ -124,7 +124,7 @@ namespace simple_nn
 		return out;
 	}
 
-    template<typename T>
+    template<typename T,int m = REDUCED_BITLENGTH_m, int k = REDUCED_BITLENGTH_k>
 	class Softmax : public Activation<T>
 	{
 	public:
@@ -152,7 +152,7 @@ void forward(const MatX<T>& prev_out, bool is_training) override
             /* const T* end = prev_out.data() + this->out_block_size; */
         
             // Using argMax which sets the max value to 1 in the output
-            argmax_argmin_sint<0,BITLENGTH>(prev_out.data(), this->height, this->output.data(), this->batch, true);
+            argmax_argmin_sint<m,k>(prev_out.data(), this->height, this->output.data(), this->batch, true);
             /* ARG_MAX(begin, begin + this->height, this->output.data() + offset); */
             /* } */    
 #else
@@ -205,7 +205,7 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 		}
 	};
 
-    template<typename T>
+    template<typename T,int m = REDUCED_BITLENGTH_m, int k = REDUCED_BITLENGTH_k>
 	class ReLU : public Activation<T>
 	{
 	public:
@@ -228,7 +228,7 @@ void forward(const MatX<T>& prev_out, bool is_training) override
             /* T::RELU(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data()); */
             /* std::copy(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data()); */
             /* RELU_range_in_place<16>( (T*) this->output.data(), (int) this->out_block_size); */
-            RELU(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data());
+            RELU<m,k>(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data());
         }
 
 		void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override
