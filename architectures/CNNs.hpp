@@ -175,33 +175,138 @@ class LeNet : public SimpleNN<T>
     }
 };
 
+
+/**
+ * class AlexNet(nn.Module):
+    def __init__(self, num_classes=10):
+        super(AlexNet, self).__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 96, kernel_size=11, stride=4, padding=9),
+            nn.ReLU(inplace=True),
+            nn.AvgPool2d(kernel_size=3, stride=2),
+            nn.Conv2d(96, 256, kernel_size=5, padding=1),
+            nn.ReLU(inplace=True),
+            nn.AvgPool2d(kernel_size=2, stride=1),
+            nn.Conv2d(256, 384, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(384, 384, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(384, 256, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+        )
+
+        if num_classes == 10:
+            self.fc_layers = nn.Sequential(
+                nn.Flatten(),
+                nn.Linear(256, 256),
+                nn.ReLU(inplace=True),
+                nn.Linear(256, 256),
+                nn.ReLU(inplace=True),
+                nn.Linear(256, 10),
+            )
+        elif num_classes == 200:
+            self.fc_layers = nn.Sequential(
+                nn.AvgPool2d(kernel_size=2),
+                nn.Flatten(),
+                nn.Linear(1024, 1024),
+                nn.ReLU(inplace=True),
+                nn.Linear(1024, 1024),
+                nn.ReLU(inplace=True),
+                nn.Linear(1024, 200),
+            )
+        elif num_classes == 1000:
+            self.fc_layers = nn.Sequential(
+                nn.AvgPool2d(kernel_size=4),
+                nn.Flatten(),
+                nn.Linear(9216, 4096),
+                nn.ReLU(),
+                nn.Linear(4096, 4096),
+                nn.ReLU(),
+                nn.Linear(4096, 1000),
+            )
+*/
 template <typename T>
-class AlexNet : public SimpleNN<T>
+class AlexNet_CryptGpu : public SimpleNN<T>
 {
     public:
-    AlexNet(int num_classes)
+    AlexNet_CryptGpu(int num_classes)
     {
-        this->add(new Conv2d<T>(3,64,11,0,0));
+        this->add(new Conv2d<T>(3,96,11,4,9));
         this->add(new ReLU<T>());
         this->add(new AvgPool2d<T>(3,2));
-        this->add(new Conv2d<T>(64,192,5,0,0));
+        this->add(new Conv2d<T>(96,256,5,1,1));
         this->add(new ReLU<T>());
-        this->add(new AvgPool2d<T>(3,2));
-        this->add(new Conv2d<T>(192,384,3,0,0));
+        this->add(new AvgPool2d<T>(2,1));
+        this->add(new Conv2d<T>(256,384,3,1,1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(384,256,3,0,0));
+        this->add(new Conv2d<T>(384,384,3,1,1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(256,256,3,0,0));
+        this->add(new Conv2d<T>(384,256,3,1,1));
         this->add(new ReLU<T>());
-        this->add(new AvgPool2d<T>(3,2));
-        this->add(new Flatten<T>());
-        this->add(new Linear<T>(9216,4096));
-        this->add(new ReLU<T>());
-        this->add(new Linear<T>(4096,4096));
-        this->add(new ReLU<T>());
-        this->add(new Linear<T>(4096,num_classes));
+        if(num_classes == 10)
+        {
+            this->add(new Flatten<T>());
+            this->add(new Linear<T>(256,256));
+            this->add(new ReLU<T>());
+            this->add(new Linear<T>(256,256));
+            this->add(new ReLU<T>());
+            this->add(new Linear<T>(256,10));
+        }
+        else if(num_classes == 200)
+        {
+            this->add(new AvgPool2d<T>(2,2));
+            this->add(new Flatten<T>());
+            this->add(new Linear<T>(1024,1024));
+            this->add(new ReLU<T>());
+            this->add(new Linear<T>(1024,1024));
+            this->add(new ReLU<T>());
+            this->add(new Linear<T>(1024,200));
+        }
+        else if(num_classes == 1000)
+        {
+            this->add(new AvgPool2d<T>(4,4));
+            this->add(new Flatten<T>());
+            this->add(new Linear<T>(9216,4096));
+            this->add(new ReLU<T>());
+            this->add(new Linear<T>(4096,4096));
+            this->add(new ReLU<T>());
+            this->add(new Linear<T>(4096,1000));
+        }
+        else
+        {
+            std::cout << "Error: num_classes must be 10, 200, or 1000" << std::endl;
+            exit(1);
+        }
     }
 };
+
+/* template <typename T> */
+/* class AlexNet : public SimpleNN<T> */
+/* { */
+/*     public: */
+/*     AlexNet(int num_classes) */
+/*     { */
+/*         this->add(new Conv2d<T>(3,64,11,1,0)); */
+/*         this->add(new ReLU<T>()); */
+/*         this->add(new AvgPool2d<T>(3,2)); */
+/*         this->add(new Conv2d<T>(64,192,5,1,0)); */
+/*         this->add(new ReLU<T>()); */
+/*         this->add(new AvgPool2d<T>(3,2)); */
+/*         this->add(new Conv2d<T>(192,384,3,1,0)); */
+/*         this->add(new ReLU<T>()); */
+/*         this->add(new Conv2d<T>(384,256,3,1,0)); */
+/*         this->add(new ReLU<T>()); */
+/*         this->add(new Conv2d<T>(256,256,3,1,0)); */
+/*         this->add(new ReLU<T>()); */
+/*         this->add(new AvgPool2d<T>(3,2)); */
+/*         this->add(new Flatten<T>()); */
+/*         this->add(new Linear<T>(9216,4096)); */
+/*         this->add(new ReLU<T>()); */
+/*         this->add(new Linear<T>(4096,4096)); */
+/*         this->add(new ReLU<T>()); */
+/*         this->add(new Linear<T>(4096,num_classes)); */
+/*     } */
+/* }; */
 
 /*
 class AlexNet_32(nn.Module):

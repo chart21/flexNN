@@ -153,13 +153,14 @@ namespace simple_nn
 	void SimpleNN<T>::forward(const MatX<T>& X, bool is_training)
 	{
 		for (int l = 0; l < net.size(); l++) {
+                start_layer_stats(toString(net[l]->type), l);
 			if (l == 0) net[l]->forward(X, is_training);
 			else 
             {
-                start_timer();
+                /* start_timer(); */
                 net[l]->forward(net[l - 1]->output, is_training);
                 /* std::string = toString(net[l]->type) + " " + net[l]->output_shape(); */
-                stop_timer(toString(net[l]->type));
+                /* stop_timer(toString(net[l]->type)); */
 /* #if IS_TRAINING == 0 */
 /*                 if (l > 1) */
 /*                 { */
@@ -168,6 +169,7 @@ namespace simple_nn
 /*                 } */
 /* #endif */
 		    }
+                stop_layer_stats(l);
 		}
 	}
 
@@ -904,7 +906,7 @@ void SimpleNN<T>::complete_read_params()
 #endif
 			classify(net.back()->output, classified);
 			error_criterion(classified, Y, error_acc);
-		if(current_phase == 1)	
+		if(current_phase == PHASE_LIVE)	
         {
 			cout <<  "P" << PARTY << ", PID" << process_offset << ": " << "[Batch: " << setw(3) << (n + 1) + n_batch*process_offset << "/" << n_batch*(process_offset+1) << "]";
 			if (n + 1 < n_batch) {
@@ -916,7 +918,7 @@ void SimpleNN<T>::complete_read_params()
 		system_clock::time_point end = system_clock::now();
 		duration<float> sec = end - start;
 
-	    if(current_phase == 1)	
+	    if(current_phase == PHASE_LIVE)	
         {
         cout << fixed << setprecision(2);
 		cout << " - t: " << sec.count() << "s";

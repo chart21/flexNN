@@ -225,10 +225,12 @@ public:
                     }
 
             }
-                start_timer();
+                start_layer_stats(toString(this->net[l]->type), l);
+                /* start_timer(); */
                 this->net[l]->forward(out, is_training);
                 out = this->net[l]->output;
-                stop_timer(toString(this->net[l]->type));
+                /* stop_timer(toString(this->net[l]->type)); */
+                stop_layer_stats(l);
             }
         }
 
