@@ -259,7 +259,18 @@ for (int n = 0; n < batch; n++) {
         trunc_2k_in_place(this->output.data(), this->output.size());
 #endif
 
-	}
+
+#if SIMULATE_QUANT == 1
+        for(int i = 0; i < this->output.size(); ++i)
+        {
+            this->output(i) = this->output(i).prepare_dot(this->output(i)); //simulate scale multiplication
+            this->output(i).mask_and_send_dot();
+        }
+        T::communicate();
+        for(int i = 0; i < this->output.size(); ++i)
+            this->output(i).complete_mult();
+#endif
+            }
 
     template<typename T>
 	void Conv2d<T>::backward(const MatX<T>& prev_out, MatX<T>& prev_delta)
