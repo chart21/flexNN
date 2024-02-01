@@ -270,6 +270,8 @@ for (int n = 0; n < batch; n++) {
         for(int i = 0; i < this->output.size(); ++i)
             this->output(i).complete_mult();
 #endif
+
+
             }
 
     template<typename T>

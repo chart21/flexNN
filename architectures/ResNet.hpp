@@ -139,7 +139,9 @@ public:
         this->add(new Conv2d<T>(image_channels, 64, 7, 2, 3, false, option));
         this->add(new BatchNorm2d<T>());
         this->add( new ReLU<T>());
-        this->add( new MaxPool2d<T>(3, 2, 1));
+        /* this->add( new MaxPool2d<T>(3, 2, 1)); */
+        this->add( new AvgPool2d<T>(3, 2, 1));
+        
         /* this->add(new AvgPool2d<T>(3, 2)); */
         /* this->add( new AvgPool2d<T>(3, 2)); */
         this->make_layer( residual_blocks[0], 64, 1, option);
