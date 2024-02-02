@@ -109,124 +109,131 @@ namespace simple_nn
     template<typename T>
 	void Conv2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
-        const int TILE_SIZE = 64;
-        for(int i = 0; i < this->output.size(); ++i)
-            this->output(i) = T(0);
+        /* const int TILE_SIZE = 64; */
+        /* for(int i = 0; i < this->output.size(); ++i) */
+        /*     this->output(i) = T(0); */
 		for (int n = 0; n < batch; n++) {
 			const T* im = prev_out.data() + (ic * ihw) * n;
 			im2col(im, ic, ih, iw, kh, stride, pad, im_col.data());
-
-            auto A = kernel.data();
-            MatX<T> BM = im_col.transpose();
-            auto B = BM.data();
-            auto C = this->output.data() + (oc * ohw) * n;
-
-
-
-
-            const int m = oc;
-            const int p = ohw;
-            const int f = kernel.cols();
-  for (int i = 0; i < m; i += TILE_SIZE) {
-      /* _mm_prefetch(A + i * f, _MM_HINT_T0); */
-        int i_max = std::min(i + TILE_SIZE, m);
-        for (int j = 0; j < p; j += TILE_SIZE) {
-            /* _mm_prefetch(B + j * f, _MM_HINT_T0); */
-            int j_max = std::min(j + TILE_SIZE, p);
-            for (int k = 0; k < f; k += TILE_SIZE) {
-                int k_max = std::min(k + TILE_SIZE, f);
-                for (int ii = i; ii < i_max; ++ii) {
-                    const int iip = ii*p;
-                    const int iif = ii*f;
-                    /* const int row2 = ii*f+kk; */
-                    for (int jj = j; jj < j_max; ++jj) {
-                        const int jjf = jj*f;
-                    auto temp = T(0);
-                        for (int kk = k; kk < k_max; ++kk) {
-                            /* _mm_prefetch(C + ii * p + jj, _MM_HINT_T0); */
-#if PUBLIC_WEIGHTS == 0
-                            temp += A[iif+kk].prepare_dot(B[jjf + kk]);
-#else
-                            temp += A[iif+kk].mult_public(B[jjf + kk]);
-#endif
-                        }
-                        C[iip + jj] += temp;
-                    }
-                }
-            }
-
-            for (int ii = i; ii < i_max; ++ii) {
-                const int row = ii*p;
-                for (int jj = j; jj < j_max; ++jj) {
-#if PUBLIC_WEIGHTS == 0
-#if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-                    C[row + jj].mask_and_send_dot_without_trunc();
-#else
-                    C[row + jj].mask_and_send_dot();
-#endif
-#else
-    #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-    #else
-                    C[row + jj].prepare_mult_public_fixed(1); //initiate truncation
-    #endif
-#endif
-                    /* C[row + jj].mask_and_send_dot(); */
-                }
-            }
-            /*     } */
-            /* } */
+            this->output.block(oc * n, 0, oc, ohw) = kernel * im_col;
+            for(int i = 0; i < oc; ++i)
+                for(int j = 0; j < ohw; ++j)
+                    this->output(oc * n + i, j).mask_and_send_dot();
         }
-    }
+        /*     auto A = kernel.data(); */
+        /*     MatX<T> BM = im_col.transpose(); */
+        /*     auto B = BM.data(); */
+        /*     auto C = this->output.data() + (oc * ohw) * n; */
 
-}
-/* for (int n = 0; n < batch; n++) { */
-/*     auto C = this->output.data() + (oc * ohw) * n; */
-/*   for (int i = 0; i < m; i += TILE_SIZE) { */
-/*       int i_max = std::min(i + TILE_SIZE, m); */
-/*       for (int j = 0; j < p; j += TILE_SIZE) { */
-/*           int j_max = std::min(j + TILE_SIZE, p); */
-/*             for (int ii = i; ii < i_max; ++ii) { */
-/*                 int row = ii*p; */
-/*                 for (int jj = j; jj < j_max; ++jj) { */
-/*                     C[row + jj].mask_and_send_dot(); */
+
+
+
+        /*     const int m = oc; */
+        /*     const int p = ohw; */
+        /*     const int f = kernel.cols(); */
+  /* for (int i = 0; i < m; i += TILE_SIZE) { */
+      /* /1* _mm_prefetch(A + i * f, _MM_HINT_T0); *1/ */
+        /* int i_max = std::min(i + TILE_SIZE, m); */
+        /* for (int j = 0; j < p; j += TILE_SIZE) { */
+        /*     /1* _mm_prefetch(B + j * f, _MM_HINT_T0); *1/ */
+        /*     int j_max = std::min(j + TILE_SIZE, p); */
+        /*     for (int k = 0; k < f; k += TILE_SIZE) { */
+        /*         int k_max = std::min(k + TILE_SIZE, f); */
+        /*         for (int ii = i; ii < i_max; ++ii) { */
+        /*             const int iip = ii*p; */
+        /*             const int iif = ii*f; */
+        /*             /1* const int row2 = ii*f+kk; *1/ */
+        /*             for (int jj = j; jj < j_max; ++jj) { */
+        /*                 const int jjf = jj*f; */
+        /*             auto temp = T(0); */
+        /*                 for (int kk = k; kk < k_max; ++kk) { */
+        /*                     /1* _mm_prefetch(C + ii * p + jj, _MM_HINT_T0); *1/ */
+/* #if PUBLIC_WEIGHTS == 0 */
+        /*                     temp += A[iif+kk].prepare_dot(B[jjf + kk]); */
+/* #else */
+        /*                     temp += A[iif+kk].mult_public(B[jjf + kk]); */
+/* #endif */
+        /*                 } */
+        /*                 C[iip + jj] += temp; */
+        /*             } */
+        /*         } */
+        /*     } */
+
+        /*     for (int ii = i; ii < i_max; ++ii) { */
+        /*         const int row = ii*p; */
+        /*         for (int jj = j; jj < j_max; ++jj) { */
+/* #if PUBLIC_WEIGHTS == 0 */
+/* #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1 */
+        /*             C[row + jj].mask_and_send_dot_without_trunc(); */
+/* #else */
+        /*             C[row + jj].mask_and_send_dot(); */
+/* #endif */
+/* #else */
+    /* #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1 */
+    /* #else */
+        /*             C[row + jj].prepare_mult_public_fixed(1); //initiate truncation */
+    /* #endif */
+/* #endif */
+        /*             /1* C[row + jj].mask_and_send_dot(); *1/ */
+        /*         } */
+        /*     } */
+        /*     /1*     } *1/ */
+        /*     /1* } *1/ */
+        /* } */
+    /* } */
+
+/* } */
+/* /1* for (int n = 0; n < batch; n++) { *1/ */
+/* /1*     auto C = this->output.data() + (oc * ohw) * n; *1/ */
+/* /1*   for (int i = 0; i < m; i += TILE_SIZE) { *1/ */
+/* /1*       int i_max = std::min(i + TILE_SIZE, m); *1/ */
+/* /1*       for (int j = 0; j < p; j += TILE_SIZE) { *1/ */
+/* /1*           int j_max = std::min(j + TILE_SIZE, p); *1/ */
+/* /1*             for (int ii = i; ii < i_max; ++ii) { *1/ */
+/* /1*                 int row = ii*p; *1/ */
+/* /1*                 for (int jj = j; jj < j_max; ++jj) { *1/ */
+/* /1*                     C[row + jj].mask_and_send_dot(); *1/ */
+/* /1*                 } *1/ */
+/* /1*             } *1/ */
+/* /1*             } *1/ */
+/* /1*             } *1/ */
+/* /1* } *1/ */
+/* /1* for(int i = 0; i < this->output.size(); ++i) *1/ */
+/* /1*     this->output(i).mask_and_send_dot(); *1/ */
+
+            T::communicate();
+            for (int n = 0; n < batch; n++) 
+                for (int i = 0; i < oc; i++) 
+                    for (int j = 0; j < ohw; j++) 
+                        this->output(oc * n + i, j).complete_mult();
+    /* auto C = this->output.data() + (oc * ohw) * n; */
+    /*         const int m = oc; */
+    /*         const int p = ohw; */
+  /* for (int i = 0; i < m; i += TILE_SIZE) { */
+    /*   int i_max = std::min(i + TILE_SIZE, m); */
+    /*   for (int j = 0; j < p; j += TILE_SIZE) { */
+    /*       int j_max = std::min(j + TILE_SIZE, p); */
+    /*         for (int ii = i; ii < i_max; ++ii) { */
+    /*             const int row = ii*p; */
+    /*             for (int jj = j; jj < j_max; ++jj) { */
+                    /* C[row + jj].complete_mult(); */
+/* #if PUBLIC_WEIGHTS == 0 */
+/* #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1 */
+/*                 C[row+jj].complete_mult_without_trunc(); */
+/* #else */
+/*                 C[row+jj].complete_mult(); */
+/* #endif */
+/* #else */
+/*     #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1 */
+/*     #else */
+/*                 C[row+jj].complete_mult_public_fixed(); */
+/*     #endif */
+/* #endif */
 /*                 } */
 /*             } */
 /*             } */
 /*             } */
 /* } */
-/* for(int i = 0; i < this->output.size(); ++i) */
-/*     this->output(i).mask_and_send_dot(); */
-
-            T::communicate();
-for (int n = 0; n < batch; n++) {
-    auto C = this->output.data() + (oc * ohw) * n;
-            const int m = oc;
-            const int p = ohw;
-  for (int i = 0; i < m; i += TILE_SIZE) {
-      int i_max = std::min(i + TILE_SIZE, m);
-      for (int j = 0; j < p; j += TILE_SIZE) {
-          int j_max = std::min(j + TILE_SIZE, p);
-            for (int ii = i; ii < i_max; ++ii) {
-                const int row = ii*p;
-                for (int jj = j; jj < j_max; ++jj) {
-                    /* C[row + jj].complete_mult(); */
-#if PUBLIC_WEIGHTS == 0
-#if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-                C[row+jj].complete_mult_without_trunc();
-#else
-                C[row+jj].complete_mult();
-#endif
-#else
-    #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-    #else
-                C[row+jj].complete_mult_public_fixed();
-    #endif
-#endif
-                }
-            }
-            }
-            }
-}
 
 /* for(int i = 0; i < this->output.size(); ++i) */
 /*     this->output(i).complete_mult(); */
