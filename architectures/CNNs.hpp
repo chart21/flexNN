@@ -372,7 +372,8 @@ class AlexNet_32 : public SimpleNN<T>
         this->add(new ReLU<T>());
         this->add(new Conv2d<T>(192,128,3,1,1));
         this->add(new ReLU<T>());
-        this->add(new MaxPool2d<T>(3,2,1));
+        /* this->add(new MaxPool2d<T>(3,2,1)); */
+        this->add(new AvgPool2d<T>(3,2,1));
         this->add(new Flatten<T>());
         this->add(new Linear<T>(2048,2048));
         this->add(new ReLU<T>());
