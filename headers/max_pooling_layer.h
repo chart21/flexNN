@@ -116,7 +116,7 @@ namespace simple_nn
 								int ii = i * stride + y - pad;
 								int jj = j * stride + x - pad;
 								int pout_idx = jj + iw * (ii + ih * (c + ch * n));
-								T val = T(UINT_TYPE(1) << BITLENGTH - 1 ); // T(FLOAT_MIN);
+								T val = T(UINT_TYPE(1) << (BITLENGTH - 1 )); // T(FLOAT_MIN);
 								/* T val = T(FLOAT_MIN); */
 								if (ii >= 0 && ii < ih && jj >= 0 && jj < iw)
 									val = pout[pout_idx];
