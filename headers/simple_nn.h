@@ -311,6 +311,7 @@ namespace simple_nn
 
 		if (total_params != count_params()) {
 			cout << "The number of parameters does not match." << endl;
+            cout << "total_params: " << total_params << " count_params: " << count_params() << endl;
 			fin.close();
 			exit(1);
 		}
