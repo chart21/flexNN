@@ -153,7 +153,9 @@ namespace simple_nn
 	void SimpleNN<T>::forward(const MatX<T>& X, bool is_training)
 	{
 		for (int l = 0; l < net.size(); l++) {
+#if PRINT_TIMINGS == 1
                 start_layer_stats(toString(net[l]->type), l);
+#endif
 			if (l == 0) net[l]->forward(X, is_training);
 			else 
             {
@@ -169,7 +171,9 @@ namespace simple_nn
 /*                 } */
 /* #endif */
 		    }
+#if PRINT_TIMINGS == 1
                 stop_layer_stats(l);
+#endif
 		}
 	}
 

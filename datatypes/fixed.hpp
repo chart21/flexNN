@@ -29,12 +29,16 @@ static INT_TYPE float_to_fixed(float_type float_val) {
 #endif
   // Check for overflow and underflow
     if (float_val >= (std::numeric_limits<INT_TYPE>::max()) / scale) { // Modified check
-        std::cout << "Overflow occurred! -> clamping" << float_val << std::endl;
+#if PRINT_IMPORTANT == 1
+        std::cout << "Warning: Overflow occurred! -> clamping" << float_val << std::endl;
+#endif
         return std::numeric_limits<INT_TYPE>::max();
     }
 
     if (float_val <= std::numeric_limits<INT_TYPE>::min() / scale) {
-        std::cout << "Underflow occurred! -> clamping" << std::endl;
+#if PRINT_IMPORTANT == 1
+        std::cout << "Warning: Underflow occurred! -> clamping" << std::endl;
+#endif
         return std::numeric_limits<INT_TYPE>::min();
     }
 
