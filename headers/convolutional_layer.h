@@ -248,16 +248,25 @@ for (int n = 0; n < batch; n++) {
     /*     } */
   /* } */
     /* } */
-    if(use_bias)
-		for (int n = 0; n < batch; n++)
-            this->output.block(oc * n, 0, oc, ohw).colwise() += bias;
-            /* for(int i = 0; i < oc; ++i) */ 
-            /*     for(int j = 0; j < ohw; ++j) */ 
-            /*         this->output(oc * n + i, j) += bias(i); */
-
 #if TRUNC_DELAYED == 0 && TRUNC_APPROACH == 1
         trunc_2k_in_place(this->output.data(), this->output.size());
 #endif
+
+if(use_bias)
+{
+#if TRUNC_DELAYED == 0
+		for (int n = 0; n < batch; n++)
+            this->output.block(oc * n, 0, oc, ohw).colwise() += bias;
+#else
+        // multiply each bias by 2^FRACTIONAL
+        std::transform(bias.data(), bias.data() + bias.size(), bias.data(), [](T x) { return x.mult_public(UINT_TYPE(1) << FRACTIONAL); });
+		for (int n = 0; n < batch; n++)
+            this->output.block(oc * n, 0, oc, ohw).colwise() += bias;
+#endif
+}            /* for(int i = 0; i < oc; ++i) */ 
+            /*     for(int j = 0; j < ohw; ++j) */ 
+            /*         this->output(oc * n + i, j) += bias(i); */
+
 
 
 #if SIMULATE_QUANT == 1

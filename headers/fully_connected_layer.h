@@ -115,16 +115,20 @@ namespace simple_nn
 
 		    /* for (int n = 0; n < batch; n++) */ 
 			    /* this->output.row(n).noalias() += b; */
-            for (int n = 0; n < batch; n++) 
-                for(int i = 0; i < this->output.cols(); ++i)
-                    this->output(n, i) += b(i);
             
 
 
 #if TRUNC_APPROACH == 1 && TRUNC_DELAYED == 0
             trunc_2k_in_place(this->output.data(), this->output.size());
 #endif
-
+           
+            for (int n = 0; n < batch; n++) 
+                for(int i = 0; i < this->output.cols(); ++i)
+#if TRUNC_DELAYED == 0
+                    this->output(n, i) += b(i);
+#else
+                  this->output(n, i) += b(i).mult_public(1 << FRACTIONAL); // bias needs to be 2f as well in case of delayed truncation
+#endif
 
 #if SIMULATE_QUANT == 1
         for(int i = 0; i < this->output.size(); ++i)
