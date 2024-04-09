@@ -109,6 +109,7 @@ namespace simple_nn
     template<typename T>
 	void Conv2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
+        T::communicate();
         const int TILE_SIZE = 64;
         for(int i = 0; i < this->output.size(); ++i)
             this->output(i) = T(0);
