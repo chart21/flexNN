@@ -447,6 +447,7 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                 {
 #if PUBLIC_WEIGHTS == 0
                     lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()).template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]));
+                    
 #else
                     lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()) = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]);
 #endif

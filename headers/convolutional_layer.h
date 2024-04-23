@@ -114,17 +114,23 @@ namespace simple_nn
         for(int i = 0; i < this->output.size(); ++i)
             this->output(i) = T(0);
 		for (int n = 0; n < batch; n++) {
-			const T* im = prev_out.data() + (ic * ihw) * n;
-			im2col(im, ic, ih, iw, kh, stride, pad, im_col.data());
+            auto C = this->output.data() + (oc * ohw) * n;
+		const T* im = prev_out.data() + (ic * ihw) * n;
+#if USE_CUDA_GEMM == 2
+            const T* W = kernel.data();
+            /* std::cout << "Y dimensinos:" << "n: " << 1 << " oc: " << oc << " ohw: " << ohw << "total: " << this->output.size() << std::endl; */
+            int local_batch = 1;
+            
 
+            T::CONV_2D( im,W,C, local_batch, ih, iw, ic, oc, kh, kw, pad, stride, 1);
+#else
+			im2col(im, ic, ih, iw, kh, stride, pad, im_col.data());
+#endif
+
+#if USE_CUDA_GEMM == 0
             auto A = kernel.data();
             MatX<T> BM = im_col.transpose();
             auto B = BM.data();
-            auto C = this->output.data() + (oc * ohw) * n;
-
-
-
-
             const int m = oc;
             const int p = ohw;
             const int f = kernel.cols();
@@ -228,7 +234,70 @@ for (int n = 0; n < batch; n++) {
             }
             }
 }
+#elif USE_CUDA_GEMM == 1 // Use CUDA GEMM
+auto A = kernel.data();
+auto B = im_col.data();
+int mul_m = kernel.rows();
+int mul_n = im_col.cols();
+int mul_k = kernel.cols();
+                    
+/* for(int i = 0; i < kernel.size(); ++i) */
+/* { */
+/*     DATATYPE val = kernel(i).get_p1(); */
+/*     alignas(sizeof(DATTYPE)) UINT_TYPE tmp[BASE_DIV]; */
+/*     unorthogonalize_arithmetic(&val, tmp,1); */
+/*         if (tmp[0] != tmp[1] || tmp[0] != tmp[2] || tmp[0] != tmp[3]) */
+/*         { */
+/*             std::cout << "tmp[0] = " << tmp[0] << "\n"; */
+/*             std::cout << "tmp[1] = " << tmp[1] << "\n"; */
+/*             std::cout << "tmp[2] = " << tmp[2] << "\n"; */
+/*         } */
+/* } */
 
+
+
+T::GEMM(A, B, C, mul_m, mul_n, mul_k, true);
+#endif
+
+#if USE_CUDA_GEMM > 0
+for(int j = 0; j < oc*ohw; ++j)
+{
+#if PUBLIC_WEIGHTS == 0
+#if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
+    C[j].mask_and_send_dot_without_trunc();
+#else
+    C[j].mask_and_send_dot();
+    #endif
+#else
+    #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
+#else
+    C[j].prepare_mult_public_fixed(1); //initiate truncation
+#endif
+#endif
+}
+}
+T::communicate();
+for (int n = 0; n < batch; n++) {
+    auto C = this->output.data() + (oc * ohw) * n;
+    for(int i = 0; i < oc*ohw; ++i)
+    {
+#if PUBLIC_WEIGHTS == 0
+#if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
+    C[i].complete_mult_without_trunc();
+#else
+    C[i].complete_mult();
+#endif
+#else
+    #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
+#else
+    C[i].complete_mult_public_fixed();
+#endif
+#endif
+}
+}
+
+
+#endif
 /* for(int i = 0; i < this->output.size(); ++i) */
 /*     this->output(i).complete_mult(); */
 
