@@ -116,7 +116,7 @@ namespace simple_nn
 		for (int n = 0; n < batch; n++) {
             auto C = this->output.data() + (oc * ohw) * n;
 		const T* im = prev_out.data() + (ic * ihw) * n;
-#if USE_CUDA_GEMM == 2
+#if USE_CUDA_GEMM == 2 || USE_CUDA_GEMM == 4
             const T* W = kernel.data();
             /* std::cout << "Y dimensinos:" << "n: " << 1 << " oc: " << oc << " ohw: " << ohw << "total: " << this->output.size() << std::endl; */
             int local_batch = 1;
@@ -234,7 +234,7 @@ for (int n = 0; n < batch; n++) {
             }
             }
 }
-#elif USE_CUDA_GEMM == 1 // Use CUDA GEMM
+#elif USE_CUDA_GEMM == 1 || USE_CUDA_GEMM == 3 // Use CUDA GEMM
 auto A = kernel.data();
 auto B = im_col.data();
 int mul_m = kernel.rows();
