@@ -135,26 +135,26 @@ namespace simple_nn
 		for (int i = 0; i < batch; i++) {
 			for (int j = 0; j < n_feat; j++) {
 #if PUBLIC_WEIGHTS == 0
-				xhat(i, j) = (prev_out(i, j) - M[j]).prepare_dot( V[j]);
-                xhat(i, j).mask_and_send_dot();
-#else
-                xhat(i, j) = (prev_out(i, j) - M[j]) * V[j];
-#endif
-			}
-		}
-        T::communicate();
-		for (int i = 0; i < batch; i++) {
-			for (int j = 0; j < n_feat; j++) {
-#if PUBLIC_WEIGHTS == 0
-				xhat(i, j).complete_mult();
-				this->output(i, j) = gamma[j].prepare_dot(xhat(i, j));
+				this->output(i, j) = (prev_out(i, j) - M[j]).prepare_dot( V[j]);
                 this->output(i, j).mask_and_send_dot();
 #else
-                xhat(i, j).complete_public_mult_fixed();
-                this->output(i, j) = xhat(i, j) * gamma[j];
+                this->output(i, j) = (prev_out(i, j) - M[j]) * V[j];
 #endif
 			}
 		}
+        /* T::communicate(); */
+		/* for (int i = 0; i < batch; i++) { */
+		/* 	for (int j = 0; j < n_feat; j++) { */
+/* #if PUBLIC_WEIGHTS == 0 */
+		/* 		xhat(i, j).complete_mult(); */
+		/* 		this->output(i, j) = gamma[j].prepare_dot(xhat(i, j)); */
+                /* this->output(i, j).mask_and_send_dot(); */
+/* #else */
+                /* xhat(i, j).complete_public_mult_fixed(); */
+                /* this->output(i, j) = xhat(i, j) * gamma[j]; */
+/* #endif */
+		/* 	} */
+		/* } */
         T::communicate();
 		for (int i = 0; i < batch; i++) {
 			for (int j = 0; j < n_feat; j++) {
@@ -166,6 +166,7 @@ namespace simple_nn
                 this->output(i, j) += beta[j];
 			}
 		}
+        T::communicate();
 
 	}
 

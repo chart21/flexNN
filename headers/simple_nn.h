@@ -487,23 +487,28 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                     lc->move_mu[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]);
 #endif
                 } 
+                //Optimization, fuse the division with the square root and gamma multiplication
                 for (int i = 0; i < s2; i++)
                 {
-                    float var = 1 / std::sqrt(tempMatrix2[i] + 0.00001f);
+                    double new_var = static_cast<double>(tempMatrix3[i]) / std::sqrt(static_cast<double>(tempMatrix2[i]) + 0.00001); // Optimiation, fuse the division with the square root and gamma multiplication
+                                                                                                                                                     float var = static_cast<float>(new_var);
+                    /* float var = tempMatrix3[i] / std::sqrt(tempMatrix2[i] + 0.00001f); */
+                   /* if(MODELOWNER == PSELF && current_phase == PHASE_LIVE) */
+                   /*      std::cout << "gamma" << tempMatrix3[i] << "var" << tempMatrix2[i] << "new var" << var << "\n"; */
 #if PUBLIC_WEIGHTS == 0
                     lc->move_var[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(var));
 #else
                     lc->move_var[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(var);
 #endif
                 }
-                for (int i = 0; i < s3; i++)
-                {
-#if PUBLIC_WEIGHTS == 0
-                    lc->gamma[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix3[i]));
-#else
-                    lc->gamma[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix3[i]);
-#endif
-                }
+                /* for (int i = 0; i < s3; i++) */
+                /* { */
+/* #if PUBLIC_WEIGHTS == 0 */
+                /*     lc->gamma[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix3[i])); */
+/* #else */
+                /*     lc->gamma[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix3[i]); */
+/* #endif */
+                /* } */
                 for (int i = 0; i < s4; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
@@ -540,21 +545,26 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                 } 
                 for (int i = 0; i < s2; i++)
                 {
-                    float var = 1 / std::sqrt(tempMatrix2[i] + 0.00001f);
+                    double new_var = static_cast<double>(tempMatrix3[i]) / std::sqrt(static_cast<double>(tempMatrix2[i]) + 0.00001); // Optimiation, fuse the division with the square root and gamma multiplication
+                                                                                                                                                     float var = static_cast<float>(new_var);
+                    /* float var = tempMatrix3[i] / std::sqrt(tempMatrix2[i] + 0.00001f); // Optimiation, fuse the division with the square root and gamma multiplication */
+                   /* if(MODELOWNER == PSELF && current_phase == PHASE_LIVE) */
+                   /*      std::cout << "gamma" << tempMatrix3[i] << "var" << tempMatrix2[i] << "new var" << var << "\n"; */
+                    /* float var = 1 / std::sqrt(tempMatrix2[i] + 0.00001f); */
 #if PUBLIC_WEIGHTS == 0
                     lc->move_var[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(var));
 #else
                     lc->move_var[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(var);
 #endif
                 }
-                for (int i = 0; i < s3; i++)
-                {
-#if PUBLIC_WEIGHTS == 0
-                    lc->gamma[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix3[i]));
-#else
-                    lc->gamma[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix3[i]);
-#endif
-                }
+                /* for (int i = 0; i < s3; i++) */
+                /* { */
+/* #if PUBLIC_WEIGHTS == 0 */
+                /*     lc->gamma[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix3[i])); */
+/* #else */
+                /*     lc->gamma[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix3[i]); */
+/* #endif */
+                /* } */
                 for (int i = 0; i < s4; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
@@ -656,10 +666,10 @@ void SimpleNN<T>::complete_read_params()
                 {
                     lc->move_var[i].template complete_receive_from<id>();
                 }
-                for (int i = 0; i < s3; i++)
-                {
-                    lc->gamma[i].template complete_receive_from<id>();
-                }
+                /* for (int i = 0; i < s3; i++) */
+                /* { */
+                /*     lc->gamma[i].template complete_receive_from<id>(); */ //Optimized out
+                /* } */
                 for (int i = 0; i < s4; i++)
                 {
                     lc->beta[i].template complete_receive_from<id>();
@@ -680,10 +690,10 @@ void SimpleNN<T>::complete_read_params()
                 {
                     lc->move_var[i].template complete_receive_from<id>();
                 }
-                for (int i = 0; i < s3; i++)
-                {
-                    lc->gamma[i].template complete_receive_from<id>();
-                }
+                /* for (int i = 0; i < s3; i++) */
+                /* { */
+                /*     lc->gamma[i].template complete_receive_from<id>(); */ //Optimized out
+                /* } */
                 for (int i = 0; i < s4; i++)
                 {
                     lc->beta[i].template complete_receive_from<id>();

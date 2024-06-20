@@ -163,10 +163,10 @@ namespace simple_nn
 				/* T b = beta[c]; */
 				for (int j = 0; j < hw; j++) {
 #if PUBLIC_WEIGHTS == 0
-					xhat(i, j) = (prev_out(i, j) - m).prepare_dot(s);
-                    xhat(i, j).mask_and_send_dot();
+					this->output(i, j) = (prev_out(i, j) - m).prepare_dot(s);
+                    this->output(i, j).mask_and_send_dot();
 #else
-                    xhat(i, j) = (prev_out(i, j) - m) * s;
+                    this->output(i, j) = (prev_out(i, j) - m) * s;
 #endif
 				}
 			}
@@ -178,39 +178,40 @@ namespace simple_nn
 				/* T m = M[c]; */
 				/* float s = std::sqrt(V[c] + eps); */
                 /* T s = V[c]; */
-				auto g = gamma[c];
+				/* auto g = gamma[c]; */ //Optimized out
 				/* T b = beta[c]; */
 				for (int j = 0; j < hw; j++) {
 #if PUBLIC_WEIGHTS == 0
-					xhat(i, j).complete_mult();
-					this->output(i, j) = g.prepare_dot(xhat(i, j));
-                    this->output(i, j).mask_and_send_dot();
+					this->output(i, j).complete_mult();
+					/* this->output(i, j) = g.prepare_dot(xhat(i, j)); */
+                    /* this->output(i, j).mask_and_send_dot(); */
 #else
-                    xhat(i, j).complete_public_mult_fixed();
-                    this->output(i, j) = xhat(i, j) * g;
+                    this->output(i, j).complete_public_mult_fixed();
+                    /* this->output(i, j) = xhat(i, j) * g; */
 #endif
+                    this->output(i, j) += beta[c]; // Optimized in
 				}
 			}
 		}
         T::communicate();
-		for (int n = 0; n < batch; n++) {
-			for (int c = 0; c < ch; c++) {
-				int i = c + ch * n;
-				/* T m = M[c]; */
-				/* float s = std::sqrt(V[c] + eps); */
-                /* T s = V[c]; */
-				/* T g = gamma[c]; */
-				auto b = beta[c];
-				for (int j = 0; j < hw; j++) {
-#if PUBLIC_WEIGHTS == 0
-					this->output(i, j).complete_mult();
-#else
-                    this->output(i, j).complete_public_mult_fixed();
-#endif
-                    this->output(i, j) += b;
-				}
-			}
-		}
+		/* for (int n = 0; n < batch; n++) { */
+		/* 	for (int c = 0; c < ch; c++) { */
+		/* 		int i = c + ch * n; */
+		/* 		/1* T m = M[c]; *1/ */
+		/* 		/1* float s = std::sqrt(V[c] + eps); *1/ */
+                /* /1* T s = V[c]; *1/ */
+		/* 		/1* T g = gamma[c]; *1/ */
+		/* 		auto b = beta[c]; */
+		/* 		for (int j = 0; j < hw; j++) { */
+/* #if PUBLIC_WEIGHTS == 0 */
+		/* 			this->output(i, j).complete_mult(); */
+/* #else */
+                    /* this->output(i, j).complete_public_mult_fixed(); */
+/* #endif */
+                    /* this->output(i, j) += b; */
+		/* 		} */
+		/* 	} */
+		/* } */
 	}
 
 

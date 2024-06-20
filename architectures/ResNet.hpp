@@ -201,7 +201,6 @@ public:
         MatX<T> temp = X;
         int i = 0;
 		for (int l = 0; l < this->net.size(); l++) {
-            std::cout << "Party: " << PARTY << ", Layer: " << l << ", Layer Type: " << toString(this->net[l]->type) << std::endl;
             if(this->identity_layers.size() != 0 && i < this->identity_layers.size()) {
                 while(this->identity_layers[i] == l)  { 
                         if(this->identity_layers_type[i] == "Identity_Store") {
