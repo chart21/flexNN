@@ -1,7 +1,5 @@
 #pragma once
 #include "layer.h"
-#include <cmath>
-#include <vector>
 
 namespace simple_nn
 {
@@ -81,6 +79,9 @@ void AdaptiveAvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
                     int out_idx = w + ow * (h + oh * (c + ch * n));
                     out[out_idx] = sum.mult_public(w_end - w_start);
 #if TRUNC_APPROACH == 0
+                if (((h_end - h_start) & (h_end - h_start - 1)) == 0) // if power of 2
+                    out[out_idx] = out[out_idx].prepare_div_exp2(h_end - h_start);
+                else
                     out[out_idx] *= FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/(h_end - h_start));
 #elif TRUNC_THEN_MULT == 0
                     out[out_idx] = out[out_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/(h_end - h_start)));

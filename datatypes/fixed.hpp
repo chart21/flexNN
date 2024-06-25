@@ -1,9 +1,4 @@
-#include <iostream>
-#include <type_traits>
-#include <cmath>
-#include <cstdint>
-#include <vector>
-#include <algorithm>
+#include "../include/pch.h"
 #define FRACTIONAL_VALUE 5
 
 

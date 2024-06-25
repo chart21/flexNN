@@ -1,9 +1,5 @@
 #pragma once
-#include <iostream>
-#include <string>
-#include <regex>
-#include <filesystem>
-
+#include "../include/pch.h"
 namespace simple_nn
 {
 	class Config

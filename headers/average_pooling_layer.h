@@ -1,6 +1,5 @@
 #pragma once
 #include "layer.h"
-#include <chrono>
 
 namespace simple_nn
 {
@@ -90,7 +89,10 @@ namespace simple_nn
 						}
                         if ((kh*kw & (kh*kw - 1)) == 0) // if power of 2
                         #if TRUNC_APPROACH == 0
-                            out[out_idx] *= FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator); //TODO: Do shifts instead
+                                out[out_idx] = out[out_idx].prepare_div_exp2(kh*kw);
+                            /* else */
+                                /* out[out_idx] *= FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator); //TODO: Do shifts instead */
+                        /* std::cout << "kh*kw" << kh*kw << std::endl; */
                         #else
                             #if TRUNC_THEN_MULT == 0
                             out[out_idx] = out[out_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator)); //TODO: Do shifts instead

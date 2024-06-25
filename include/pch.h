@@ -1,0 +1,20 @@
+#pragma once
+#include <algorithm>
+#include <assert.h>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <eigen3/Eigen/Dense>
+#include <filesystem>
+#include <fstream>
+#include <functional>
+#include <iomanip>
+#include <iostream>
+#include <numeric>
+#include <queue>
+#include <random>
+#include <regex>
+#include <string>
+#include <type_traits>
+#include <vector>
+

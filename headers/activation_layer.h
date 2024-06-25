@@ -1,7 +1,5 @@
 #pragma once
 #include "layer.h"
-#include <chrono>
-// #include <linux/limits.h>
 
 namespace simple_nn
 {
@@ -215,19 +213,6 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 		{
             assert(this->output.size() == prev_out.size());
 
-        /* T::RELU(begin, begin + this->height, this->output.data()); */
-        /* this->output.setZero(); */
-			/* std::transform( */
-				/* prev_out.data(), */ 
-				/* prev_out.data() + this->out_block_size, */ 
-				/* this->output.data(), */
-				/* [](const T& e) { return e.relu(); } */
-			/* ); // need to define a vectorized relu call to minimize communication rounds */
-		//instead of above approach, get contiguous data from prev_out with a beggining and end pointer and use T::RELU
-        
-            /* T::RELU(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data()); */
-            /* std::copy(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data()); */
-            /* RELU_range_in_place<16>( (T*) this->output.data(), (int) this->out_block_size); */
             RELU<m,k>(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data());
         }
 

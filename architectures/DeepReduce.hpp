@@ -1,6 +1,5 @@
 #pragma once
 #include "../headers/simple_nn.h"
-#include <queue>
 
 using namespace simple_nn;
 

@@ -1,6 +1,5 @@
 #pragma once
 #include "../headers/simple_nn.h"
-#include <queue>
 
 // Conv2d(int in_channels, int out_channels, int kernel_size, int padding, string option);
 // Linear(int in_features, int out_features, string option);
