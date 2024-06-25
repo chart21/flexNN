@@ -127,7 +127,13 @@ namespace simple_nn
 #if TRUNC_DELAYED == 0
                     this->output(n, i) += b(i);
 #else
+#if PUBLIC_WEIGHTS == 0
                   this->output(n, i) += b(i).mult_public(1 << FRACTIONAL); // bias needs to be 2f as well in case of delayed truncation
+#else
+                  this->output(n, i) += b(i) << FRACTIONAL;
+#endif
+
+
 #endif
 
 #if SIMULATE_QUANT == 1
