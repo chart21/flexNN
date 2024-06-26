@@ -136,14 +136,7 @@ namespace simple_nn
 			}
 
 			cout << fixed << setprecision(2);
-			/* cout << " - t: " << sec.count() << 's'; */
-			/* cout << " - loss: " << loss.reveal() / n_batch; */
-			/* cout << " - error: " << (error / n_batch).reveal() * 100 << "%"; */
-			/* cout << " - error: " << (error / n_batch) * 100 << "%"; */
 			if (n_batch_valid != 0) {
-				/* cout << " - loss(valid): " << loss_valid.reveal() / n_batch_valid; */
-				/* cout << " - error(valid): " << (error_valid / n_batch_valid).reveal() * 100 << "%"; */
-				/* cout << " - error(valid): " << (error_valid / n_batch_valid) * 100 << "%"; */
 			}
 			cout << endl;
 		}

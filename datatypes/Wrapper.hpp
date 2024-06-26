@@ -2,104 +2,6 @@
 #define FRACTIONAL_VALUE 5
 
 
-// General template definitions encapsulated inside a struct
-#define DEBUG_MODE
-template <typename float_type, typename INT_TYPE, typename UINT_TYPE, int fractional_bits>
-struct FloatFixedConverter {
-static float_type fixed_to_float(INT_TYPE fixed_val) {
-#if TRUNC_THEN_MULT == 1
-    const float_type scale = (1 << fractional_bits*2);
-#else
-    const float_type scale = (1 << fractional_bits);
-#endif
-    return static_cast<float_type>(fixed_val) / scale;
-}
-
-static INT_TYPE float_to_fixed(float_type float_val) {
-#if TRUNC_THEN_MULT == 1
-    const float_type scale = (1 << fractional_bits*2);
-    float_val = float_val/ (1 << fractional_bits); // variant with trunc then mult
-#else
-    const float_type scale = (1 << fractional_bits);
-#endif
-  // Check for overflow and underflow
-    if (float_val >= (std::numeric_limits<INT_TYPE>::max()) / scale) { // Modified check
-#if PRINT_IMPORTANT == 1
-        std::cout << "Warning: Overflow occurred! -> clamping" << float_val << std::endl;
-#endif
-        return std::numeric_limits<INT_TYPE>::max();
-    }
-
-    if (float_val <= std::numeric_limits<INT_TYPE>::min() / scale) {
-#if PRINT_IMPORTANT == 1
-        std::cout << "Warning: Underflow occurred! -> clamping" << std::endl;
-#endif
-        return std::numeric_limits<INT_TYPE>::min();
-    }
-
-    return static_cast<INT_TYPE>(std::round(float_val * scale));
-}
-
-static UINT_TYPE int_to_twos_complement(INT_TYPE val) {
-    return static_cast<UINT_TYPE>(val); 
-}
-
-static INT_TYPE twos_complement_to_int(UINT_TYPE val) {
-    return static_cast<INT_TYPE>(val);
-}
-
-static UINT_TYPE float_to_ufixed(float_type float_val) { //TODO: should be UINT_TYPE?
-    return int_to_twos_complement(float_to_fixed(float_val));
-}
-
-static float_type ufixed_to_float(UINT_TYPE ufixed_val) {
-    return fixed_to_float(twos_complement_to_int(ufixed_val));
-}
-
-
-};
-
-// Specialization for the case where float_type and UINT_TYPE are both float
-
-template <int fractional>
-struct FloatFixedConverter<float, float, float, fractional> {
-    static float fixed_to_float(float val) {
-        return val;
-    }
-
-    static float float_to_fixed(float val) {
-        return val;
-    }
-
-    static float int_to_twos_complement(float val) {
-        return val;
-    }
-
-    static float twos_complement_to_int(float val) {
-        return val;
-    }
-
-    static float float_to_ufixed(float val) {
-        return val;
-    }
-
-    static float ufixed_to_float(float val) {
-        return val;
-    }
-};
-
-// Usage:
-// FloatFixedConverter<float_type, UINT_TYPE, fractional>::fixedToFloat(val);
-// FloatFixedConverter<float_type, UINT_TYPE, fractional>::floatToFixed(val);
-template <typename float_type, typename INT_TYPE, typename UINT_TYPE, int fractional>
-float_type fixedToFloat(UINT_TYPE val) {
-    return FloatFixedConverter<float_type, INT_TYPE, UINT_TYPE, fractional>::fixedToFloat(val);
-}
-
-template <typename float_type, typename INT_TYPE, typename UINT_TYPE, int fractional>
-UINT_TYPE floatToFixed(float_type val) {
-    return FloatFixedConverter<float_type, INT_TYPE, UINT_TYPE, fractional>::floatToFixed(val);
-}
 
 /* template <typename Datatype, typename float_type, typename INT_TYPE, typename UINT_TYPE, int fractional> */
 /* void store_convert_vectorize(float val) */
@@ -172,113 +74,16 @@ uint64_t truncate(const uint64_t& val) {
 }
 
 
-/* template<typename T> */
-/* class Share{ */
-/* T s1; */
-/* T s2; */
-/*     public: */
-/* Share(T s){ */
-/* this->s2 = (T) rand(); */
-/* this->s1 = s - this->s2; */
-/* } */
-
-/* Share(T s1, T s2){ */
-/* this->s1 = s1; */
-/* this->s2 = s2; */
-/* } */
-
-/* Share(){ */
-/* this->s1 = 0; */
-/* this->s2 = 0; */
-/* } */
-
-/* T get_s1(){ */
-/*     return this->s1; */
-/* } */
-
-/* T get_s2(){ */
-/*     return this->s2; */
-/* } */
-
-/* Share operator+(const Share s) const{ */
-/*     return Share(this->s1 + s.s1, this->s2 + s.s2); */
-/* } */
-
-/* Share operator-(const Share s) const{ */
-/*     return Share(this->s1 - s.s1, this->s2 - s.s2); */
-/* } */
-
-/* Share operator*(const Share s) const{ */
-/*     auto ls1 = this->s1 * s.s1 + this->s1 * s.s2; */
-/*     auto ls2 = this->s2 * s.s1 + this->s2 * s.s2; */
-/*     return Share(ls1, ls2); */
-/* } */
-
-/* Share operator*(const int s) const{ */
-/*     return Share(this->s1 * s, this->s2 * s); */
-/* } */
-
-/* Share operator/(const int s) const{ */
-/*     return Share(this->s1 / s, this->s2 / s); */
-/* } */
-
-/* void operator+=(const Share s){ */
-/*     this->s1 += s.s1; */
-/*     this->s2 += s.s2; */
-/* } */
-
-/* void operator-=(const Share s){ */
-/*     this->s1 -= s.s1; */
-/*     this->s2 -= s.s2; */
-/* } */
-
-/* void operator*= (const Share s){ */
-/* *this = *this * s; */
-/* } */
-
-
-/* //needed for Eigen optimization */
-/* bool operator==(const Share<T>& other) const { */
-/*     return false; */ 
-/* } */
-
-/* Share trunc_local() const{ */
-/*     auto mask = (T) rand(); */
-/*     auto s1 = this->s1 + mask; */
-/*     auto s2 = this->s2 - mask; */
-
-/*     return Share(truncate(s1), truncate(s2)); */
-/* } */
-
-/* template<typename float_type, typename INT_TYPE, typename UINT_TYPE, int fractional> */
-/* float_type reveal_float() const{ */
-/*     auto s = s1 + s2; */
-/*     /1* return fixedToFloat<float_type, T, fractional>(s); *1/ */
-/*     return FloatFixedConverter<float_type, INT_TYPE, UINT_TYPE, fractional>::ufixed_to_float(s); */
-/*     } */
-
-/* }; */
 
 template<typename float_type, typename INT_TYPE, typename UINT_TYPE, int fractional, typename T>
 class Wrapper{
 using W = Wrapper<float_type, INT_TYPE, UINT_TYPE, fractional, T>;
 T s1;
     public:
-/* Wrapper(T s){ */
-/* this->s1 = s; */
-/* } */
-
-/* Wrapper(int s) */
-/* { */
-/*     this->s1 = T(s); */
-/* } */
 
 Wrapper(float s)
 {
     this->s1 = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL_VALUE>::float_to_ufixed(s);
-    /* this->s1 = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, ANOTHER_FRACTIONAL_VALUE>::ufixed_to_float(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, ANOTHER_FRACTIONAL_VALUE>::float_to_ufixed(s)); */
-    /* UINT_TYPE temp = FloatFixedConverter<float_type, INT_TYPE, UINT_TYPE, fractional>::float_to_ufixed(s); */
-    /* this->s1 = FloatFixedConverter<float_type, INT_TYPE, UINT_TYPE, fractional>::ufixed_to_float(temp); */
 }
 
 Wrapper(T s, int dummy)

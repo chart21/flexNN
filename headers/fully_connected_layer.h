@@ -60,93 +60,24 @@ namespace simple_nn
     template<typename T>
 	void Linear<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
-    /* if(current_phase == 1) */
-    /* std::cout << "FC ..." << std::endl; */
+        
         for (int n = 0; n < batch; n++) {
-            for(int i = 0; i < W.rows(); ++i) {
-            T sum = T(0);
-            for(int j = 0; j < W.cols(); ++j) {
 
-#if PUBLIC_WEIGHTS == 0
-                sum += W(i, j).prepare_dot(prev_out(n, j));  // Use custom * and + operators
-#else
-                sum += prev_out(n, j).mult_public(W(i, j));  
-#endif
-            }
-
-
-#if PUBLIC_WEIGHTS == 0
-#if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-            sum.mask_and_send_dot_without_trunc(); // send immediately to utilize network better
-#else
-            sum.mask_and_send_dot();
-#endif
-#else
-    #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-    #else
-            sum.prepare_mult_public_fixed(1); //initiate truncation
-    #endif
-#endif
-
-
-            this->output(n, i) = sum;
-        }
-            /* tmp_output2.row(n).noalias() = W * prev_out.row(n).transpose(); */
+            const T* W = this->W.data();
+            const T* A = prev_out.data() + n * prev_out.cols(); 
+            T* C = this->output.data() + n * this->output.cols();
+            prepare_Matrix_Vector_Product(W, A, C, this->W.rows(), this->W.cols());
         }
 
             T::communicate();
-            /* for (int i = 0; i < this->output.size(); i++) */ 
-            /*     this->output(i).mask_and_send_dot(); */
-            for (int i = 0; i < this->output.size(); i++) {
-#if PUBLIC_WEIGHTS == 0
-#if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-                this->output(i).complete_mult_without_trunc();
-#else
-                this->output(i).complete_mult();
-#endif
-#else
-    #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-    #else
-                this->output(i).complete_public_mult_fixed();
-    #endif
-#endif
-                /* this->output(i) += b(i); //added to replace lower code */
-            }
-
-		    /* for (int n = 0; n < batch; n++) */ 
-			    /* this->output.row(n).noalias() += b; */
-            
-
-
-#if TRUNC_APPROACH == 1 && TRUNC_DELAYED == 0
-            trunc_2k_in_place(this->output.data(), this->output.size());
-#endif
-           
+            auto C = this->output.data();
+            complete_GEMM(C, this->output.size());
+          
+            auto B = b.data();
             for (int n = 0; n < batch; n++) 
                 for(int i = 0; i < this->output.cols(); ++i)
-#if TRUNC_DELAYED == 0
-                    this->output(n, i) += b(i);
-#else
-#if PUBLIC_WEIGHTS == 0
-                  this->output(n, i) += b(i).mult_public(1 << FRACTIONAL); // bias needs to be 2f as well in case of delayed truncation
-#else
-                  this->output(n, i) += b(i) << FRACTIONAL;
-#endif
-
-
-#endif
-
-#if SIMULATE_QUANT == 1
-        for(int i = 0; i < this->output.size(); ++i)
-        {
-            this->output(i) = this->output(i).prepare_dot(this->output(i)); //simulate scale multiplication
-            this->output(i).mask_and_send_dot();
-        }
-        T::communicate();
-        for(int i = 0; i < this->output.size(); ++i)
-            this->output(i).complete_mult();
-#endif
-            }
+                    add_bias(C[n * this->output.cols() + i], B[i]);
+           }
 		
 	
 

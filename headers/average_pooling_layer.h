@@ -65,13 +65,11 @@ namespace simple_nn
     template<typename T>
 	void AvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
-    /* if(current_phase == 1) */
-    /* std::cout << "AVG Pool ..." << std::endl; */
         T::communicate();
         this->output.setZero();
 		T* out = this->output.data();
 		const T* pout = prev_out.data();
-		float denominator = kh * kw;
+		const int denominator = kh * kw;
 		for (int n = 0; n < batch; n++) {
 			for (int c = 0; c < ch; c++) {
 				for (int i = 0; i < oh; i++) {
@@ -87,81 +85,13 @@ namespace simple_nn
 								}
 							}
 						}
-                        if ((kh*kw & (kh*kw - 1)) == 0) // if power of 2
-                        #if TRUNC_APPROACH == 0
-                                out[out_idx] = out[out_idx].prepare_div_exp2(kh*kw);
-                            /* else */
-                                /* out[out_idx] *= FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator); //TODO: Do shifts instead */
-                        /* std::cout << "kh*kw" << kh*kw << std::endl; */
-                        #else
-                            #if TRUNC_THEN_MULT == 0
-                            out[out_idx] = out[out_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator)); //TODO: Do shifts instead
-                            #else
-                                continue;
-                            #endif
-                        #endif
-                        else 
-                        #if TRUNC_APPROACH == 0
-                            out[out_idx] *= FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator); //TODO: Do shifts instead
-                        #else
-                            #if TRUNC_THEN_MULT == 0
-                            out[out_idx] = out[out_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator)); //TODO: Do shifts instead
-                            #else
-                                continue;
-                            #endif
-                        #endif
+                        prepare_prob_div(out[out_idx], denominator);
 					}
 				}
 			}
 		}
         T::communicate();
-    
-        /* this->output.setZero(); */
-		/* T* out = this->output.data(); */
-		/* const T* pout = prev_out.data(); */
-		/* auto denominator = kh * kw; */
-		/* for (int n = 0; n < batch; n++) { */
-			/* for (int c = 0; c < ch; c++) { */
-				/* for (int i = 0; i < oh; i++) { */
-					/* for (int j = 0; j < ow; j++) { */
-						/* int out_idx = j + ow * (i + oh * (c + ch * n)); */
-						/* for (int y = 0; y < kh; y++) { */
-							/* for (int x = 0; x < kw; x++) { */
-								/* int ii = i * stride + y; */
-								/* int jj = j * stride + x; */
-								/* int in_idx = jj + iw * (ii + ih * (c + ch * n)); */
-								/* if (ii >= 0 && ii < ih && jj >= 0 && jj < iw) { */
-									/* out[out_idx] += pout[in_idx]; */
-								/* } */
-							/* } */
-						/* } */
-						/* out[out_idx] /= denominator; */
-					/* } */
-				/* } */
-			/* } */
-		/* } */
-        // commented out by author
-		/*for (int n = 0; n < batch; n++) {
-			for (int c = 0; c < channels; c++) {
-				const float* im = prev_out.data() + ihw * (c + channels * n);
-				im2col(im, 1, ih, iw, kh, stride, 0, im_col.data());
-				output.row(c + channels * n) = im_col.colwise().mean();
-			}
-		}*/
-#if TRUNC_APPROACH == 0
-        for (int i = 0; i < this->output.size(); i++)
-            out[i].complete_public_mult_fixed();
-#else
-    #if TRUNC_THEN_MULT == 1
-        trunc_2k_in_place(out, this->output.size());
-        T::communicate();
-        for (int i = 0; i < this->output.size(); i++)
-            out[i] = out[i].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator)); 
-    #else
-        trunc_2k_in_place(out, this->output.size());
-        T::communicate();
-    #endif
-#endif
+        complete_prob_div(out, this->output.size(), denominator);
 	}
 
     template<typename T>
@@ -181,9 +111,7 @@ namespace simple_nn
 								int jj = x + stride * j - pad;
 								int prev_idx = jj + iw * (ii + ih * (c + ch * n));
 								if (ii >= 0 && ii < ih && jj >= 0 && jj < iw) {
-									/* pd[prev_idx] = d[cur_idx] / denominator; */
-                                    pd[prev_idx] += d[cur_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator)); //TODO: extend with different trunc methods
-                                    /* pd[prev_idx] += d[cur_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator)); */
+                                    /* pd[prev_idx] += d[cur_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator)); //TODO: extend with different trunc methods */
 							        	
                                 }
 							}

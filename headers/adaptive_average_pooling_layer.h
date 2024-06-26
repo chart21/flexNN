@@ -86,8 +86,6 @@ void AdaptiveAvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 #elif TRUNC_THEN_MULT == 0
                     out[out_idx] = out[out_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/(h_end - h_start)));
 #endif
-                    /* out[out_idx] = sum * T(1/((h_end - h_start) * (w_end - w_start))); */
-                    /* out[out_idx].complete_mult(); */
                 }
             }
         }

@@ -110,254 +110,54 @@ namespace simple_nn
 	void Conv2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
         T::communicate();
-        const int TILE_SIZE = 64;
-        for(int i = 0; i < this->output.size(); ++i)
-            this->output(i) = T(0);
+        this->output.setZero();
+#if USE_CUDA_GEMM == 2 || USE_CUDA_GEMM == 4 // Outsource whole convolution to GPU
 		for (int n = 0; n < batch; n++) {
             auto C = this->output.data() + (oc * ohw) * n;
-		const T* im = prev_out.data() + (ic * ihw) * n;
-#if USE_CUDA_GEMM == 2 || USE_CUDA_GEMM == 4
+		    const T* im = prev_out.data() + (ic * ihw) * n;
             const T* W = kernel.data();
-            /* std::cout << "Y dimensinos:" << "n: " << 1 << " oc: " << oc << " ohw: " << ohw << "total: " << this->output.size() << std::endl; */
             int local_batch = 1;
-            
-
             T::CONV_2D( im,W,C, local_batch, ih, iw, ic, oc, kh, kw, pad, stride, 1);
-#else
+            send_GEMM_GPU(C, oc, ohw);
+        }
+#else // CPU or outsource only GEMM to GPU
+		for (int n = 0; n < batch; n++) {
+            auto C = this->output.data() + (oc * ohw) * n;
+		    const T* im = prev_out.data() + (ic * ihw) * n;
 			im2col(im, ic, ih, iw, kh, stride, pad, im_col.data());
-#endif
-
-#if USE_CUDA_GEMM == 0
             auto A = kernel.data();
+            #if USE_CUDA_GEMM == 0 //CPU uses transposed matrix
             MatX<T> BM = im_col.transpose();
             auto B = BM.data();
+            #else
+            auto B = im_col.data();
+            #endif
             const int m = oc;
             const int p = ohw;
             const int f = kernel.cols();
-  for (int i = 0; i < m; i += TILE_SIZE) {
-      /* _mm_prefetch(A + i * f, _MM_HINT_T0); */
-        int i_max = std::min(i + TILE_SIZE, m);
-        for (int j = 0; j < p; j += TILE_SIZE) {
-            /* _mm_prefetch(B + j * f, _MM_HINT_T0); */
-            int j_max = std::min(j + TILE_SIZE, p);
-            for (int k = 0; k < f; k += TILE_SIZE) {
-                int k_max = std::min(k + TILE_SIZE, f);
-                for (int ii = i; ii < i_max; ++ii) {
-                    const int iip = ii*p;
-                    const int iif = ii*f;
-                    /* const int row2 = ii*f+kk; */
-                    for (int jj = j; jj < j_max; ++jj) {
-                        const int jjf = jj*f;
-                    auto temp = T(0);
-                        for (int kk = k; kk < k_max; ++kk) {
-                            /* _mm_prefetch(C + ii * p + jj, _MM_HINT_T0); */
-#if PUBLIC_WEIGHTS == 0
-                            temp += A[iif+kk].prepare_dot(B[jjf + kk]);
-#else
-                            temp += B[jjf + kk].mult_public(A[iif+kk]);
-#endif
-                        }
-                        C[iip + jj] += temp;
-                    }
-                }
-            }
-
-            for (int ii = i; ii < i_max; ++ii) {
-                const int row = ii*p;
-                for (int jj = j; jj < j_max; ++jj) {
-#if PUBLIC_WEIGHTS == 0
-#if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-                    C[row + jj].mask_and_send_dot_without_trunc();
-#else
-                    C[row + jj].mask_and_send_dot();
-#endif
-#else
-    #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-    #else
-                    C[row + jj].prepare_mult_public_fixed(1); //initiate truncation
-    #endif
-#endif
-                    /* C[row + jj].mask_and_send_dot(); */
-                }
-            }
-            /*     } */
-            /* } */
+            prepare_GEMM(A, B, C, m, p, f,true);
         }
+#endif
+    T::communicate();
+    for (int n = 0; n < batch; n++) {
+        auto C = this->output.data() + (oc * ohw) * n;
+        complete_GEMM(C, oc, ohw);
     }
-
-}
-/* for (int n = 0; n < batch; n++) { */
-/*     auto C = this->output.data() + (oc * ohw) * n; */
-/*   for (int i = 0; i < m; i += TILE_SIZE) { */
-/*       int i_max = std::min(i + TILE_SIZE, m); */
-/*       for (int j = 0; j < p; j += TILE_SIZE) { */
-/*           int j_max = std::min(j + TILE_SIZE, p); */
-/*             for (int ii = i; ii < i_max; ++ii) { */
-/*                 int row = ii*p; */
-/*                 for (int jj = j; jj < j_max; ++jj) { */
-/*                     C[row + jj].mask_and_send_dot(); */
-/*                 } */
-/*             } */
-/*             } */
-/*             } */
-/* } */
-/* for(int i = 0; i < this->output.size(); ++i) */
-/*     this->output(i).mask_and_send_dot(); */
-
-            T::communicate();
-for (int n = 0; n < batch; n++) {
-    auto C = this->output.data() + (oc * ohw) * n;
-            const int m = oc;
-            const int p = ohw;
-  for (int i = 0; i < m; i += TILE_SIZE) {
-      int i_max = std::min(i + TILE_SIZE, m);
-      for (int j = 0; j < p; j += TILE_SIZE) {
-          int j_max = std::min(j + TILE_SIZE, p);
-            for (int ii = i; ii < i_max; ++ii) {
-                const int row = ii*p;
-                for (int jj = j; jj < j_max; ++jj) {
-                    /* C[row + jj].complete_mult(); */
-#if PUBLIC_WEIGHTS == 0
-#if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-                C[row+jj].complete_mult_without_trunc();
-#else
-                C[row+jj].complete_mult();
-#endif
-#else
-    #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-    #else
-                C[row+jj].complete_mult_public_fixed();
-    #endif
-#endif
-                }
-            }
-            }
-            }
-}
-#elif USE_CUDA_GEMM == 1 || USE_CUDA_GEMM == 3 // Use CUDA GEMM
-auto A = kernel.data();
-auto B = im_col.data();
-int mul_m = kernel.rows();
-int mul_n = im_col.cols();
-int mul_k = kernel.cols();
-                    
-/* for(int i = 0; i < kernel.size(); ++i) */
-/* { */
-/*     DATATYPE val = kernel(i).get_p1(); */
-/*     alignas(sizeof(DATTYPE)) UINT_TYPE tmp[BASE_DIV]; */
-/*     unorthogonalize_arithmetic(&val, tmp,1); */
-/*         if (tmp[0] != tmp[1] || tmp[0] != tmp[2] || tmp[0] != tmp[3]) */
-/*         { */
-/*             std::cout << "tmp[0] = " << tmp[0] << "\n"; */
-/*             std::cout << "tmp[1] = " << tmp[1] << "\n"; */
-/*             std::cout << "tmp[2] = " << tmp[2] << "\n"; */
-/*         } */
-/* } */
-
-
-
-T::GEMM(A, B, C, mul_m, mul_n, mul_k, true);
-#endif
-
-#if USE_CUDA_GEMM > 0
-for(int j = 0; j < oc*ohw; ++j)
-{
-#if PUBLIC_WEIGHTS == 0
-#if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-    C[j].mask_and_send_dot_without_trunc();
-#else
-    C[j].mask_and_send_dot();
-    #endif
-#else
-    #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-#else
-    C[j].prepare_mult_public_fixed(1); //initiate truncation
-#endif
-#endif
-}
-}
-T::communicate();
-for (int n = 0; n < batch; n++) {
-    auto C = this->output.data() + (oc * ohw) * n;
-    for(int i = 0; i < oc*ohw; ++i)
-    {
-#if PUBLIC_WEIGHTS == 0
-#if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-    C[i].complete_mult_without_trunc();
-#else
-    C[i].complete_mult();
-#endif
-#else
-    #if TRUNC_DELAYED == 1 || TRUNC_APPROACH == 1
-#else
-    C[i].complete_mult_public_fixed();
-#endif
-#endif
-}
-}
-
-
-#endif
-/* for(int i = 0; i < this->output.size(); ++i) */
-/*     this->output(i).complete_mult(); */
-
-    /* for (int n = 0; n < batch; n++) { */
-    /* auto C = this->output.data() + (oc * ohw) * n; */
-  /* for (int i = 0; i < m; i += TILE_SIZE) { */
-    /*   /1* _mm_prefetch(A + i * f, _MM_HINT_T0); *1/ */
-    /*     int i_max = std::min(i + TILE_SIZE, m); */
-    /*     for (int j = 0; j < p; j += TILE_SIZE) { */
-    /*         /1* _mm_prefetch(B + j * f, _MM_HINT_T0); *1/ */
-    /*         int j_max = std::min(j + TILE_SIZE, p); */
-    /*             for (int ii = i; ii < i_max; ++ii) { */
-    /*                 /1* const int row2 = ii*f+kk; *1/ */
-    /*                 for (int jj = j; jj < j_max; ++jj) { */
-    /*             /1* this->output(i) += bias(i % oc); // replace lower code *1/ */
-    /*         } */
-    /*             } */
-    /*     } */
-  /* } */
-    /* } */
-#if TRUNC_DELAYED == 0 && TRUNC_APPROACH == 1
-        trunc_2k_in_place(this->output.data(), this->output.size());
-#endif
 
 if(use_bias)
 {
-#if TRUNC_DELAYED == 0
+    auto C = this->output.data();
+    auto B = bias.data();
 		for (int n = 0; n < batch; n++)
-            this->output.block(oc * n, 0, oc, ohw).colwise() += bias;
-#else
-        // multiply each bias by 2^FRACTIONAL
-#if PUBLIC_WEIGHTS == 0
-        std::transform(bias.data(), bias.data() + bias.size(), bias.data(), [](T x) { return x.mult_public(UINT_TYPE(1) << FRACTIONAL); });
-		for (int n = 0; n < batch; n++)
-            this->output.block(oc * n, 0, oc, ohw).colwise() += bias;
-#else
-		for (int n = 0; n < batch; n++)
-        {
             for(int i = 0; i < oc; ++i)
                 for(int j = 0; j < ohw; ++j)
-                    this->output(oc * n + i, j) += bias(i) << FRACTIONAL;
-        }
-#endif
-#endif
-}            /* for(int i = 0; i < oc; ++i) */ 
-            /*     for(int j = 0; j < ohw; ++j) */ 
-            /*         this->output(oc * n + i, j) += bias(i); */
+                    add_bias(C[n*oc*ohw + i*ohw + j], B[i]);
+}            
+            
+            
 
 
 
-#if SIMULATE_QUANT == 1
-        for(int i = 0; i < this->output.size(); ++i)
-        {
-            this->output(i) = this->output(i).prepare_dot(this->output(i)); //simulate scale multiplication
-            this->output(i).mask_and_send_dot();
-        }
-        T::communicate();
-        for(int i = 0; i < this->output.size(); ++i)
-            this->output(i).complete_mult();
-#endif
 
 
             }

@@ -69,37 +69,6 @@ namespace simple_nn
     template<typename T, int m, int k>
 	void MaxPool2d<T,m,k>::forward(const MatX<T>& prev_out, bool is_training)
 	{
-		/* T* out = this->output.data(); */
-		/* const T* pout = prev_out.data(); */
-		/* for (int n = 0; n < batch; n++) { */
-		/* 	for (int c = 0; c < ch; c++) { */
-		/* 		for (int i = 0; i < oh; i++) { */
-		/* 			for (int j = 0; j < ow; j++) { */
-		/* 				int out_idx = j + ow * (i + oh * (c + ch * n)); */
-		/* 				T max = T(FLOAT_MIN); */
-		/* 				int max_idx = -1; */
-		/* 				for (int y = 0; y < kh; y++) { */
-		/* 					for (int x = 0; x < kw; x++) { */
-		/* 						int ii = i * stride + y; */
-		/* 						int jj = j * stride + x; */
-		/* 						int pout_idx = jj + iw * (ii + ih * (c + ch * n)); */
-		/* 						T val = T(FLOAT_MIN); */
-		/* 						if (ii >= 0 && ii < ih && jj >= 0 && jj < iw) { */
-		/* 							val = pout[pout_idx]; */
-		/* 						} */
-		/* 						if (val > max) { */
-		/* 							max = val; */
-		/* 							max_idx = pout_idx; */
-		/* 						} */
-		/* 					} */
-		/* 				} */
-		/* 				out[out_idx] = max; */
-		/* 				indices[out_idx] = max_idx; */
-		/* 			} */
-		/* 		} */
-		/* 	} */
-		/* } */
-        
 		T* out = this->output.data();
 		const T* pout = prev_out.data();
         auto max_candidates = new T[batch * ch * oh * ow * kh * kw];
@@ -108,34 +77,23 @@ namespace simple_nn
 			for (int c = 0; c < ch; c++) {
 				for (int i = 0; i < oh; i++) {
 					for (int j = 0; j < ow; j++) {
-						/* int out_idx = j + ow * (i + oh * (c + ch * n)); */
-						/* T max = T(0)-T(1); // T(FLOAT_MIN); */
-						/* int max_idx = -1; */
 						for (int y = 0; y < kh; y++) {
 							for (int x = 0; x < kw; x++) {
 								int ii = i * stride + y - pad;
 								int jj = j * stride + x - pad;
 								int pout_idx = jj + iw * (ii + ih * (c + ch * n));
 								T val = T(UINT_TYPE(1) << (BITLENGTH - 1 )); // T(FLOAT_MIN);
-								/* T val = T(FLOAT_MIN); */
 								if (ii >= 0 && ii < ih && jj >= 0 && jj < iw)
 									val = pout[pout_idx];
                                 else if(pad > 0)
                                     val = T(0); // 0 padding
                                 max_candidates[counter++] = val;
-								/* if (val > max) { */
-								/* 	max = val; */
-								/* 	max_idx = pout_idx; */
-								/* } */
 							}
 						}
-						/* out[out_idx] = max; */
-						/* indices[out_idx] = max_idx; */
 					}
 				}
 			}
 		}
-    /* max_min_sint<0,BITLENGTH>(max_candidates, kh * kw, out, batch * ch * oh * ow, true); */
     max_min_sint<m,k>(max_candidates, kh * kw, out, batch * ch * oh * ow, true);
     delete[] max_candidates;
 	}
