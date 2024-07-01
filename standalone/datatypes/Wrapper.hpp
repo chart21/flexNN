@@ -1,38 +1,7 @@
-#include "../include/pch.h"
+// Plaintext Wrapper class for fixed-point arithmetic
+#pragma once
+#include "../../include/pch.h"
 #define FRACTIONAL_VALUE 5
-
-
-
-/* template <typename Datatype, typename float_type, typename INT_TYPE, typename UINT_TYPE, int fractional> */
-/* void store_convert_vectorize(float val) */
-/* { */
-/*     UINT_TYPE fixVal = FloatFixedConverter<float_type, INT_TYPE, UINT_TYPE, fractional>::floatToFixed(val); */
-/*     Datatype vecVal = PROMOTE(fixVal); */
-/*     for(int i = 0; i < BITLENGTH; i++) */
-/*     { */
-/*         player_input[counter] = vecVal; */
-/*         counter++; */
-/*     } */
-/* } */
-/* template <typename Datatype, typename float_type, typename INT_TYPE, typename UINT_TYPE, int fractional> */
-/* void store_convert_ortho(float val[BITLENGTH][DATTYPE/BITLENGTH]) */
-/* { */
-/*     alignas(sizeof(DATATYPE)) UINT_TYPE fixVals[BITLENGTH][DATTYPE/BITLENGTH]; */
-/*     for(int i = 0; i < BITLENGTH; i++) */
-/*     { */
-/*         for(int j = 0; j < DATTYPE/BITLENGTH; j++) */
-/*         { */
-/*             fixVals[i][j] = FloatFixedConverter<float_type, INT_TYPE, UINT_TYPE, fractional>::floatToFixed(val[i][j]); */
-/*         } */
-/*     } */
-/*     orthogonalize_arithmetic((UINT_TYPE*) fixVals, (Datatype*) fixVals); */
-    
-/*     for(int i = 0; i < BITLENGTH; i++) */
-/*     { */
-/*         player_input[counter] = ((Datatype*) fixVals)[i]; */
-/*         counter++; */
-/*     } */
-/* } */
 
 template <typename T>
 T truncate(const T& val)
@@ -110,10 +79,6 @@ Wrapper operator-(const Wrapper s) const{
 }
 
 Wrapper operator*(const Wrapper s) const{
-    /* if(Wrapper(this->s1 * s.s1,0).reveal() > 1000000){ */
-    /*     std::cout << "overflow" <<std::endl; */
-
-    /* } */
     return Wrapper(this->s1 * s.s1, 0);
 }
 
@@ -127,10 +92,6 @@ Wrapper operator/(const int s) const{
 
 void mask_and_send_dot() 
 {
-    /* this->s1 = truncate(this->s1); */
-    /* if(std::abs(this->reveal()) > 50){ */
-    /*     std::cout << "s1 " << this->reveal()  << std::endl; */
-    /* } */
 }
 
 void complete_mult()
@@ -192,23 +153,14 @@ Wrapper relu() const{
     else
         return Wrapper(0,0);
     }
-    /* return W(isNegative ? T(0) : this->s1); */    
-    /* if (this->s1 > 0) */
-    /*     return Wrapper(this->s1,0); */
-    /* else */
-    /*     return Wrapper(0,0); */
 }
 
-/* Wrapper<T> drelu() const{ */
-/*     return Wrapper<T>(this->s1 > 0 ? Wrapper(1) : Wrapper(0)); */
-/* } */
 
 Wrapper drelu(const Wrapper& other) const{
     if (this->s1 > 0)
         return Wrapper(other.s1,0);
     else
         return Wrapper(0,0);
-    /* return Wrapper(this->s1 > 0 ? other : 0,0); */
 }
 
 //temporary solutions for softmax
@@ -291,8 +243,5 @@ float_type reveal() const{
     return FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL_VALUE>::ufixed_to_float(this->s1);
 }
 
-/* void truncate(){ */
-/*     this->s1 = truncate(this->s1); */
-/* } */
 
 };

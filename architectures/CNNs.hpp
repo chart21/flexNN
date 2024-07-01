@@ -1,5 +1,8 @@
 #pragma once
 #include "../headers/simple_nn.h"
+
+// === PYTORCH Equivalent, CPP Version below ===
+
 /*
 template<typename T> 
  class VGG : SimpleNN<T>
@@ -59,15 +62,8 @@ if classes == 10:
     (4): ReLU()
     (5): Linear(in_features=256, out_features=10, bias=True)
   )
-if classes == 100:
-
-)
 */
 
-// Conv2d(int in_channels, int out_channels, int kernel_size, int padding, string option);
-// Linear(int in_features, int out_features, string option);
-// MaxPool2d(int kernel_size, int stride);
-// AvgPool2d(int kernel_size, int stride);
 
 using namespace simple_nn;
 
@@ -108,14 +104,6 @@ class VGG : public SimpleNN<T>
     this->add(new Conv2d<T>(512,512,3,1,1));
     this->add(new ReLU<T>());
     this->add(new AvgPool2d<T>(2,2));
-    /* net.add(new AdaptiveAvgPool2d<T>(7,7)); */
-    
-    /* net.add(new Flatten<T>()); */
-    /* net.add(new Linear<T>(25088,4096)); */
-    /* net.add(new ReLU<T>()); */
-    /* net.add(new Linear<T>(4096,4096)); */
-    /* net.add(new ReLU<T>()); */
-    /* net.add(new Linear<T>(4096,1000)); */
 
     if(num_classes == 10)
     {
@@ -152,17 +140,16 @@ class VGG : public SimpleNN<T>
 
 };
 
+
 template <typename T>       
 class LeNet : public SimpleNN<T>
 {
     public:
     LeNet(int num_classes)
     {
-        /* this->add(new Conv2d<T>(1,6,5,0,0)); */
         this->add(new Conv2d<T>(1,6,5,1,2));
         this->add(new ReLU<T>());
         this->add(new AvgPool2d<T>(2,2));
-        /* this->add(new Conv2d<T>(6,16,5,0,0)); */
         this->add(new Conv2d<T>(6,16,5,1,0));
         this->add(new ReLU<T>());
         this->add(new AvgPool2d<T>(2,2));
@@ -175,6 +162,8 @@ class LeNet : public SimpleNN<T>
     }
 };
 
+
+// === PYTORCH Equivalent, CPP Version below ===
 
 /**
  * class AlexNet(nn.Module):
@@ -280,6 +269,10 @@ class AlexNet_CryptGpu : public SimpleNN<T>
     }
 };
 
+
+// === PYTORCH Equivalent, CPP Version below ===
+
+
 /* template <typename T> */
 /* class AlexNet : public SimpleNN<T> */
 /* { */
@@ -384,101 +377,4 @@ class AlexNet_32 : public SimpleNN<T>
         this->add(new Linear<T>(2048,num_classes));
     }
 };
-
-/* template<typename T> */
-/* void load_model(const Config& cfg, SimpleNN<T>& model) */
-/* { */
-/* 	if (cfg.model == "lenet5") { */
-/* 		for (int i = 0; i < 6; i++) { */
-/* 			if (i < 2) { */
-/* 				if (i == 0) { */
-/* 					model.add(new Conv2d<T>(1, 6, 5, 1, 2, true, cfg.init)); */
-/* 				} */
-/* 				else { */
-/* 					model.add(new Conv2d<T>(6, 16, 5, 1, 0, true, cfg.init)); */
-/* 				} */
-/* 				if (cfg.use_batchnorm) { */
-/* 					model.add(new BatchNorm2d<T>); */
-/* 				} */
-/* 				if (cfg.activ == "relu") { */
-/* 					model.add(new ReLU<T>); */
-/* 				} */
-/* 				/1* else { *1/ */
-/* 				/1* 	model.add(new Tanh<T>); *1/ */
-/* 				/1* } *1/ */
-/* 				if (cfg.pool == "max") { */
-/* 					model.add(new MaxPool2d<T>(2, 2)); */
-/* 				} */
-/* 				else { */
-/* 					model.add(new AvgPool2d<T>(2, 2)); */
-/* 				} */
-/* 			} */
-/* 			else if (i == 2) { */
-/* 				model.add(new Flatten<T>); */
-/* 			} */
-/* 			else if (i < 5) { */
-/* 				if (i == 3) { */
-/* 					model.add(new Linear<T>(400, 120, cfg.init)); */
-/* 				} */
-/* 				else { */
-/* 					model.add(new Linear<T>(120, 84, cfg.init)); */
-/* 				} */
-/* 				if (cfg.use_batchnorm) { */
-/* 					model.add(new BatchNorm1d<T>); */
-/* 				} */
-/* 				if (cfg.activ == "relu") { */
-/* 					model.add(new ReLU<T>); */
-/* 				} */
-/* 				/1* else { *1/ */
-/* 				/1* 	model.add(new Tanh<T>); *1/ */
-/* 				/1* } *1/ */
-/* 			} */
-/* 			else { */
-/* 				model.add(new Linear<T>(84, 10, cfg.init)); */
-/* 				if (cfg.use_batchnorm) { */
-/* 					model.add(new BatchNorm1d<T>); */
-/* 				} */
-/* 				if (cfg.loss == "cross_entropy") { */
-/* 					model.add(new Softmax<T>); */
-/* 				} */
-/* 				/1* else { *1/ */
-/* 				/1* 	model.add(new Sigmoid<T>); *1/ */
-/* 				/1* } *1/ */
-/* 			} */
-/* 		} */
-/* 	} */
-/* 	else { */
-/* 		for (int i = 0; i < 3; i++) { */
-/* 			if (i < 2) { */
-/* 				if (i == 0) { */
-/* 					model.add(new Linear<T>(784, 500, cfg.init)); */
-/* 				} */
-/* 				else { */
-/* 					model.add(new Linear<T>(500, 150, cfg.init)); */
-/* 				} */
-/* 				if (cfg.use_batchnorm) { */
-/* 					model.add(new BatchNorm1d<T>); */
-/* 				} */
-/* 				if (cfg.activ == "relu") { */
-/* 					model.add(new ReLU<T>); */
-/* 				} */
-/* 				/1* else { *1/ */
-/* 				/1* 	model.add(new Tanh<T>); *1/ */
-/* 				/1* } *1/ */
-/* 			} */
-/* 			else { */
-/* 				model.add(new Linear<T>(150, 10, cfg.init)); */
-/* 				if (cfg.use_batchnorm) { */
-/* 					model.add(new BatchNorm1d<T>); */
-/* 				} */
-/* 				/1* if (cfg.loss == "cross_entropy") { *1/ */
-/* 				/1* 	model.add(new Softmax<T>); *1/ */
-/* 				/1* } *1/ */
-/* 				/1* else { *1/ */
-/* 				/1* 	model.add(new Sigmoid<T>); *1/ */
-/* 				/1* } *1/ */
-/* 			} */
-/* 		} */
-/* 	} */
-/* } */
 

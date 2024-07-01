@@ -128,11 +128,6 @@ MatXf read_custom_images(const string& filename, int n_imgs, int channel, int he
         for (int img = 0; img < n_imgs; ++img) {
             for (int i = 0; i < image_size; ++i) {
                 file.ignore(sizeof(float));
-            /* float pixel; */
-            /* file.read(reinterpret_cast<char*>(&pixel), sizeof(float)); */
-            /* images(img,i) = pixel; */
-            
-                
     }}} 
     for (int img = 0; img < n_imgs; ++img) {
         for (int i = 0; i < image_size; ++i) {
@@ -159,9 +154,6 @@ VecXi read_custom_labels(const string& filename, int n_imgs) {
     for(int i = 0; i < process_offset; i++) {
         for (int img = 0; img < n_imgs; ++img) {
             file.ignore(sizeof(uint32_t));
-    /* uint32_t label; */
-    /* file.read(reinterpret_cast<char*>(&label), sizeof(uint32_t)); */
-    /* labels[i] = label; */
     }}
     
     for (int i = 0; i < n_imgs; ++i) {
@@ -172,11 +164,4 @@ VecXi read_custom_labels(const string& filename, int n_imgs) {
     file.close();
     return labels;
 }
-
-
-
-
-
-
-
 }

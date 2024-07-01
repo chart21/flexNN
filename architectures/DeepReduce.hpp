@@ -3,6 +3,9 @@
 
 using namespace simple_nn;
 
+
+// === PYTORCH Equivalent, CPP Version below ===
+
 /*
 class BasicBlock(nn.Module):
 	expansion = 1
@@ -273,19 +276,16 @@ class ReducedNet : public SimpleNN<T>
                 while(this->identity_layers[i] == l)  { 
                         if(this->identity_layers_type[i] == "Identity_Store") {
                             identity = out; //store identity of current layer
-                            /* std::cout << "Identity_Store" << std::endl; */
                         }
                         else if(this->identity_layers_type[i] == "Identity_OP_Start") {
                             //network starts operating on identity, storing last output
                             temp = out; 
                             out = identity;
-                            /* std::cout << "Identity_OP_Start" << std::endl; */
                         }
                         else if(this->identity_layers_type[i] == "Identity_OP_Finish") {
                             //network finished processing identity, loading back last output
                             identity = out;
                             out = temp;
-                            /* std::cout << "Identity_OP_Finish" << std::endl; */
                         }
                     i++;
                     if(i >= this->identity_layers.size()) {
@@ -294,10 +294,6 @@ class ReducedNet : public SimpleNN<T>
                     }
 
             }
-            /* if (toString(this->net[l]->type) == "LINEAR" || toString(this->net[l]->type) == "BATCHNORM2D" || toString(this->net[l]->type) == "CONV2D") */
-            /* { */
-            /* std::cout << "Layer: " << l << ", Layer Type: " << toString(this->net[l]->type) << std::endl; */
-            /* } */
             this->net[l]->set_layer(out);
             out = this->net[l]->output_shape();
 		

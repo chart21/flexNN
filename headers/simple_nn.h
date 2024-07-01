@@ -152,17 +152,7 @@ namespace simple_nn
 			if (l == 0) net[l]->forward(X, is_training);
 			else 
             {
-                /* start_timer(); */
                 net[l]->forward(net[l - 1]->output, is_training);
-                /* std::string = toString(net[l]->type) + " " + net[l]->output_shape(); */
-                /* stop_timer(toString(net[l]->type)); */
-/* #if IS_TRAINING == 0 */
-/*                 if (l > 1) */
-/*                 { */
-/*                     net.erase(net.begin() + l - 1); */
-/*                     l--; */
-/*                 } */
-/* #endif */
 		    }
 #if PRINT_TIMINGS == 1
                 stop_layer_stats(l);
@@ -173,9 +163,6 @@ namespace simple_nn
     template<typename T>
 	void SimpleNN<T>::classify(const MatX<T>& output, VecXi& classified)
 	{
-		// assume that the last layer is linear, not 2d.
-        /* std::cout << "output:" << output.rows() << " " << output.cols() << "\n"; */
-        /* std::cout << "classified:" << classified.size() << "\n"; */
         assert(output.rows()*(BASE_DIV) == classified.size()); // Adjusted because of sint
         //loop over all elements in output and save them in float Matrix
         
@@ -209,29 +196,22 @@ namespace simple_nn
 #endif
         
         for (int i = 0; i < classified.size(); i++) {
-			/* output.row(i).maxCoeff(&classified[i]); */
 			output_float.row(i).maxCoeff(&classified[i]);
 		}
     }
 
     template<typename T>
 	void SimpleNN<T>::error_criterion(const VecXi& classified, const VecXi& labels, float& error_acc)
-	/* void SimpleNN<T>::error_criterion(const VecXi& classified, const VecXi& labels, T& error_acc) */
 	{
 		int batch = (int)classified.size();
-        /* assert(labels.size() >= batch); */
 
-		/* T error(0); */
         float error(0);
 		for (int i = 0; i < batch; i++) {
 			if (classified[i] != labels[i]) 
             {
                 error+=1;
-                /* error+=T(1); */
-                /* std::cout << "classified[i] = " << classified[i] << " labels[i] = " << labels[i] << "\n"; */
 		    }
         }
-		/* error_acc += error / batch; */
         error_acc += error;
 	}
 
@@ -297,7 +277,6 @@ namespace simple_nn
 
 		if (!fin) {
 			cout << path << " does not exist. Setting dummy weights." << endl;
-			/* exit(1); */
 		}
 
 		int total_params;
@@ -317,7 +296,6 @@ namespace simple_nn
         T::communicate();
         complete_read_params<id>();
 #endif
-		/* write_or_read_params(fin, "read"); */
 
 		fin.close();
 
@@ -569,45 +547,8 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
 
         }
     }
-    /* } */
 }
 
-
-    /* template<typename T> */
-/* void SimpleNN<T>::prepare_read_params(fstream& fs) */
-/* { */
-    /* for (Layer<T>* l : net) { */
-
-    /*     if (l->type == LayerType::LINEAR) { */
-    /*         Linear<T>* lc = dynamic_cast<Linear<T>*>(l); */
-    /*         int s1 = lc->W.rows() * lc->W.cols(); */
-    /*         int s2 = lc->b.size(); */
-
-    /*             for (int i = 0; i < s1; i++) */ 
-    /*             { */
-    /*                 lc->W(i / lc->W.cols(), i % lc->W.cols()).template prepare_receive_from<P_0>(); */
-    /*             } */
-    /*             for (int i = 0; i < s2; i++) */
-    /*             { */
-    /*                 lc->b[i].template prepare_receive_from<P_0>(); */
-    /*             } */
-    /*         } */
-    /*     else if (l->type == LayerType::CONV2D) { */
-    /*         Conv2d<T>* lc = dynamic_cast<Conv2d<T>*>(l); */
-    /*         int s1 = lc->kernel.rows() * lc->kernel.cols(); */
-    /*         int s2 = lc->bias.size(); */
-
-    /*             for (int i = 0; i < s1; i++) */
-    /*             { */
-    /*                 lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()).template prepare_receive_from<P_0>(); */
-    /*             } */ 
-    /*             for (int i = 0; i < s2; i++) */
-    /*             { */
-    /*                 lc->bias[i].template prepare_receive_from<P_0>(); */
-    /*             } */
-    /*         } */
-    /* } */
-/* } */
     
 template <typename T>
 template <int id>
@@ -659,10 +600,7 @@ void SimpleNN<T>::complete_read_params()
                 {
                     lc->move_var[i].template complete_receive_from<id>();
                 }
-                /* for (int i = 0; i < s3; i++) */
-                /* { */
-                /*     lc->gamma[i].template complete_receive_from<id>(); */ //Optimized out
-                /* } */
+
                 for (int i = 0; i < s4; i++)
                 {
                     lc->beta[i].template complete_receive_from<id>();
@@ -683,10 +621,7 @@ void SimpleNN<T>::complete_read_params()
                 {
                     lc->move_var[i].template complete_receive_from<id>();
                 }
-                /* for (int i = 0; i < s3; i++) */
-                /* { */
-                /*     lc->gamma[i].template complete_receive_from<id>(); */ //Optimized out
-                /* } */
+               
                 for (int i = 0; i < s4; i++)
                 {
                     lc->beta[i].template complete_receive_from<id>();
@@ -697,153 +632,6 @@ void SimpleNN<T>::complete_read_params()
 }
 
 
-/* template<typename T> */
-/* void SimpleNN<T>::write_or_read_params(fstream& fs, string mode) */
-/* { */
-/*     for (Layer<T>* l : net) { */
-/*         vector<float> tempMatrix1, tempMatrix2, tempMatrix3, tempMatrix4; // Temporary vectors for parameter storage */
-
-/*         if (l->type == LayerType::LINEAR) { */
-/*             Linear<T>* lc = dynamic_cast<Linear<T>*>(l); */
-/*             int s1 = lc->W.rows() * lc->W.cols(); */
-/*             int s2 = lc->b.size(); */
-/*             tempMatrix1.resize(s1); */
-/*             tempMatrix2.resize(s2); */
-
-/*             if (mode == "write") { */
-/*                 for (int i = 0; i < s1; i++) */ 
-/*                 { */
-/*                     tempMatrix1[i] = lc->W(i / lc->W.cols(), i % lc->W.cols()).reveal(); */
-/*                 } */
-/*                 for (int i = 0; i < s2; i++) */
-/*                 { */
-/*                     tempMatrix2[i] = lc->b[i].reveal(); */
-/*                 } */
-/*                     fs.write((char*)tempMatrix1.data(), sizeof(float) * s1); */
-/*                 fs.write((char*)tempMatrix2.data(), sizeof(float) * s2); */
-/*             } */
-/*             else { */
-/*                 fs.read((char*)tempMatrix1.data(), sizeof(float) * s1); */
-/*                 fs.read((char*)tempMatrix2.data(), sizeof(float) * s2); */
-/*                 for (int i = 0; i < s1; i++) */ 
-/*                 { */
-/*                     lc->W(i / lc->W.cols(), i % lc->W.cols()) = T(tempMatrix1[i]); */
-/*                 } */
-/*                 for (int i = 0; i < s2; i++) */
-/*                 { */
-/*                     lc->b[i] = T(tempMatrix2[i]); */
-/*                 } */
-/*             } */
-/*         } */
-/*         else if (l->type == LayerType::CONV2D) { */
-/*             Conv2d<T>* lc = dynamic_cast<Conv2d<T>*>(l); */
-/*             int s1 = lc->kernel.rows() * lc->kernel.cols(); */
-/*             int s2 = lc->bias.size(); */
-/*             tempMatrix1.resize(s1); */
-/*             tempMatrix2.resize(s2); */
-
-/*             if (mode == "write") { */
-/*                 for (int i = 0; i < s1; i++) */ 
-/*                 { */
-/*                     tempMatrix1[i] = lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()).reveal(); */
-/*                 } */
-/*                 for (int i = 0; i < s2; i++) */ 
-/*                 { */
-/*                     tempMatrix2[i] = lc->bias[i].reveal(); */
-/*                 } */
-/*                 fs.write((char*)tempMatrix1.data(), sizeof(float) * s1); */
-/*                 fs.write((char*)tempMatrix2.data(), sizeof(float) * s2); */
-/*             } */
-/*             else { */
-/*                 fs.read((char*)tempMatrix1.data(), sizeof(float) * s1); */
-/*                 fs.read((char*)tempMatrix2.data(), sizeof(float) * s2); */
-/*                 for (int i = 0; i < s1; i++) */
-/*                 { */
-/*                     lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()) = T(tempMatrix1[i]); */
-/*                 } */ 
-/*                 for (int i = 0; i < s2; i++) */
-/*                 { */
-/*                     lc->bias[i] = T(tempMatrix2[i]); */
-/*                 } */
-/*             } */
-/*         } */
-/*     } */
-/* } */
-
-
-    /* template<typename T> */
-	/* void SimpleNN<T>::write_or_read_params(fstream& fs, string mode) */
-	/* { */
-		/* for (const Layer<T>* l : net) { */
-			/* if (l->type == LayerType::LINEAR) { */
-				/* const Linear<T>* lc = dynamic_cast<const Linear<T>*>(l); */
-				/* int s1 = (int)lc->W.size(); */
-				/* int s2 = (int)lc->b.size(); */
-				/* if (mode == "write") { */
-					/* fs.write((char*)lc->W.data(), sizeof(float) * s1); */
-					/* fs.write((char*)lc->b.data(), sizeof(float) * s2); */
-				/* } */
-				/* else { */
-					/* fs.read((char*)lc->W.data(), sizeof(float) * s1); */
-					/* fs.read((char*)lc->b.data(), sizeof(float) * s2); */
-				/* } */
-			/* } */
-			/* else if (l->type == LayerType::CONV2D) { */
-				/* const Conv2d<T>* lc = dynamic_cast<const Conv2d<T>*>(l); */
-				/* int s1 = (int)lc->kernel.size(); */
-				/* int s2 = (int)lc->bias.size(); */
-				/* if (mode == "write") { */
-					/* fs.write((char*)lc->kernel.data(), sizeof(float) * s1); */
-					/* fs.write((char*)lc->bias.data(), sizeof(float) * s2); */
-				/* } */
-				/* else { */
-					/* fs.read((char*)lc->kernel.data(), sizeof(float) * s1); */
-					/* fs.read((char*)lc->bias.data(), sizeof(float) * s2); */
-				/* } */
-			/* } */
-			/* else if (l->type == LayerType::BATCHNORM1D) { */
-				/* const BatchNorm1d<T>* lc = dynamic_cast<const BatchNorm1d<T>*>(l); */
-				/* int s1 = (int)lc->move_mu.size(); */
-				/* int s2 = (int)lc->move_var.size(); */
-				/* int s3 = (int)lc->gamma.size(); */
-				/* int s4 = (int)lc->beta.size(); */
-				/* if (mode == "write") { */
-					/* fs.write((char*)lc->move_mu.data(), sizeof(float) * s1); */
-					/* fs.write((char*)lc->move_var.data(), sizeof(float) * s2); */
-					/* fs.write((char*)lc->gamma.data(), sizeof(float) * s3); */
-					/* fs.write((char*)lc->beta.data(), sizeof(float) * s4); */
-				/* } */
-				/* else { */
-					/* fs.read((char*)lc->move_mu.data(), sizeof(float) * s1); */
-					/* fs.read((char*)lc->move_var.data(), sizeof(float) * s2); */
-					/* fs.read((char*)lc->gamma.data(), sizeof(float) * s3); */
-					/* fs.read((char*)lc->beta.data(), sizeof(float) * s4); */
-				/* } */
-			/* } */
-			/* else if (l->type == LayerType::BATCHNORM2D) { */
-				/* const BatchNorm2d<T>* lc = dynamic_cast<const BatchNorm2d<T>*>(l); */
-				/* int s1 = (int)lc->move_mu.size(); */
-				/* int s2 = (int)lc->move_var.size(); */
-				/* int s3 = (int)lc->gamma.size(); */
-				/* int s4 = (int)lc->beta.size(); */
-				/* if (mode == "write") { */
-					/* fs.write((char*)lc->move_mu.data(), sizeof(float) * s1); */
-					/* fs.write((char*)lc->move_var.data(), sizeof(float) * s2); */
-					/* fs.write((char*)lc->gamma.data(), sizeof(float) * s3); */
-					/* fs.write((char*)lc->beta.data(), sizeof(float) * s4); */
-				/* } */
-				/* else { */
-					/* fs.read((char*)lc->move_mu.data(), sizeof(float) * s1); */
-					/* fs.read((char*)lc->move_var.data(), sizeof(float) * s2); */
-					/* fs.read((char*)lc->gamma.data(), sizeof(float) * s3); */
-					/* fs.read((char*)lc->beta.data(), sizeof(float) * s4); */
-				/* } */
-			/* } */
-			/* else { */
-				/* continue; */
-			/* } */
-		/* } */
-	/* } */
 
     template<typename T>
     template<typename F>
@@ -852,9 +640,6 @@ void SimpleNN<T>::complete_read_params()
 		int batch = data_loader.input_shape()[0];
         int ch = data_loader.input_shape()[1];
 		int n_batch = data_loader.size();
-        /* std::cout << "batch: " << batch << "\n"; */
-        /* std::cout << "n_batch: " << n_batch << "\n"; */
-		/* T error_acc(0); */
         float error_acc(0);
 
 		MatX<T> X;
@@ -866,7 +651,6 @@ void SimpleNN<T>::complete_read_params()
 			auto test_X = data_loader.get_x(n); //Adjusted because of sint
 			VecXi Y = data_loader.get_y(n);
 #if JIT_VEC == 1 
-			/* MatX<float> test_X = data_loader.get_x(n); //Adjusted because of sint */
             MatX<T> test_XX(test_X.rows()/(BASE_DIV), test_X.cols());
 
 

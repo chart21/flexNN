@@ -1,12 +1,10 @@
 #pragma once
 #include "../headers/simple_nn.h"
 
-// Conv2d(int in_channels, int out_channels, int kernel_size, int padding, string option);
-// Linear(int in_features, int out_features, string option);
-// MaxPool2d(int kernel_size, int stride);
-// AvgPool2d(int kernel_size, int stride);
-
 using namespace simple_nn;
+
+// === PYTORCH Equivalent, CPP Version below ===
+
 /*
  class block(nn.Module):
     def __init__(
@@ -125,6 +123,8 @@ using namespace simple_nn;
 /*             layers.append(block(self.in_channels, intermediate_channels)) */
 
 /*         return nn.Sequential(*layers) */
+
+
 template <typename T>
 class ResNet : public SimpleNN<T>
 {
@@ -139,15 +139,11 @@ public:
         this->add(new BatchNorm2d<T>());
         this->add( new ReLU<T>());
         /* this->add( new MaxPool2d<T>(3, 2, 1)); */
-        this->add( new AvgPool2d<T>(3, 2, 1));
-        
-        /* this->add(new AvgPool2d<T>(3, 2)); */
-        /* this->add( new AvgPool2d<T>(3, 2)); */
+        this->add( new AvgPool2d<T>(3, 2, 1)); // Replaced MaxPool with AvgPool
         this->make_layer( residual_blocks[0], 64, 1, option);
         this->make_layer( residual_blocks[1], 128, 2, option);
         this->make_layer( residual_blocks[2], 256, 2, option);
         this->make_layer( residual_blocks[3], 512, 2, option);
-        /* this->add( new AvgPool2d<T>(1, 1)); */
         this->add( new AdaptiveAvgPool2d<T>(1, 1));
         this->add( new Flatten<T>());
         this->add(new Linear<T>(512 * 4, num_classes, option));
@@ -279,26 +275,15 @@ public:
                     }
 
             }
-            /* if (toString(this->net[l]->type) == "LINEAR" || toString(this->net[l]->type) == "BATCHNORM2D" || toString(this->net[l]->type) == "CONV2D") */
-            /* { */
-            /* std::cout << "Layer: " << l << ", Layer Type: " << toString(this->net[l]->type) << std::endl; */
-            /* } */
             this->net[l]->set_layer(out);
             out = this->net[l]->output_shape();
 		
         }
-
 		// set Loss layer
 		if (loss != nullptr) {
 			loss->set_layer(this->net.back()->output_shape());
 	}
 	}
-
-        
-        
-
-
-
 };
     
 
@@ -325,9 +310,4 @@ ResNet<T> ResNet152(int num_classes, string option = "kaiming_uniform", int imag
     int residual_blocks[4] = {3, 8, 36, 3};
     return ResNet<T>(residual_blocks, image_channels, num_classes, option);
 }
-
-
-
-
-
 

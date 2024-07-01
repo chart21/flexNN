@@ -143,16 +143,7 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 {
         this->output.setZero();
 #if IS_TRAINING == 0
-        /* for (int n = 0; n < this->batch; n++) { //TODO: Parallelize argmaxes of all batches to save communication rounds */
-            /* int offset = this->height * n; */
-            /* const T* begin = prev_out.data() + offset; */
-            /* const T* begin = prev_out.data(); */            
-            /* const T* end = prev_out.data() + this->out_block_size; */
-        
-            // Using argMax which sets the max value to 1 in the output
             argmax_argmin_sint<m,k>(prev_out.data(), this->height, this->output.data(), this->batch, true);
-            /* ARG_MAX(begin, begin + this->height, this->output.data() + offset); */
-            /* } */    
 #else
             for (int n = 0; n < this->batch; n++) {
             int offset = this->height * n;
@@ -169,30 +160,6 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 #endif
     
     
-        /* this->output.setZero(); */
-
-    /* if (!is_training) { // If not in training mode, compute argmax */
-        /* for (int n = 0; n < this->batch; n++) { */
-        /*     int offset = this->height * n; */
-        /*     const T* begin = prev_out.data() + offset; */
-            
-        /*     // Using argMax which sets the max value to 1 in the output */
-        /*     T::argMax(begin, begin + this->height, this->output.data() + offset); */
-        /* } */
-    /* } else { // If in training mode, compute softmax */
-        /* for (int n = 0; n < this->batch; n++) { */
-        /*     int offset = this->height * n; */
-        /*     const T* begin = prev_out.data() + offset; */
-            
-        /*     T max = T::findMax(begin, begin + this->height); // Using T::findMax() which returns the max value */
-        /*     T sum = sum_exp(begin, this->height, max); */
-
-        /*     std::transform(begin, begin + this->height, this->output.data() + offset, */
-        /*                    [&](const T& e) { */
-        /*                        return (e - max).exp() / sum; */
-        /*                    }); */
-        /* } */
-    /* } */
 }
 
 
@@ -218,15 +185,6 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 
 		void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override
 		{
-			/* std::transform( */
-			/* 	prev_out.data(), */ 
-			/* 	prev_out.data() + this->out_block_size, */ 
-			/* 	this->delta.data(), */ 
-			/* 	prev_delta.data(), */
-			/* 	[](const T& e1, const T& e2) { */
-			/* 		return e1.drelu(e2); */
-			/* 	} */
-			/* ); */
 		}
 	};
 }
