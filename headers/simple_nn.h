@@ -715,10 +715,9 @@ void SimpleNN<T>::complete_read_params()
         {
         cout << fixed << setprecision(2);
 		cout << " - t: " << sec.count() << "s";
-		cout << " - error(" << batch * n_batch << " images): ";
+		cout << " - accuracy(" << batch * n_batch << " images): ";
 
-		/* cout << error_acc.reveal() / (batch * n_batch * DATTYPE) * 100 << "%" << endl; */
-		cout << error_acc / (batch * n_batch) * 100 << "%" << endl;
+		cout << (1 - error_acc / (batch * n_batch)) * 100 << "%" << endl;
         }
 	}
 }
