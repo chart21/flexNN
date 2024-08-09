@@ -111,9 +111,22 @@ namespace simple_nn
 	{
         T::communicate();
         this->output.setZero();
+#if TRUNC_DELAYED == 1
+        
+        if(delayed)
+#if TRUNC_APPROACH == 0
+            trunc_pr_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+#elif TRUNC_APPROACH == 1
+            trunc_2k_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),false);
+#elif TRUNC_APPROACH == 2
+            trunc_exact_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+#endif
+        delayed = true;
+#endif
 #if USE_CUDA_GEMM == 2 || USE_CUDA_GEMM == 4 // Outsource whole convolution to GPU
 		for (int n = 0; n < batch; n++) {
             auto C = this->output.data() + (oc * ohw) * n;
+
 		    const T* im = prev_out.data() + (ic * ihw) * n;
             const T* W = kernel.data();
             int local_batch = 1;
@@ -143,6 +156,12 @@ namespace simple_nn
         auto C = this->output.data() + (oc * ohw) * n;
         complete_GEMM(C, oc, ohw);
     }
+    
+    #if TRUNC_DELAYED == 0 && TRUNC_APPROACH == 1
+        trunc_2k_in_place(this->output.data(), this->output.size(),false);
+    #elif TRUNC_DELAYED == 0 && TRUNC_APPROACH == 2
+        trunc_exact_in_place(this->output.data(), this->output.size());
+    #endif
 
 if(use_bias)
 {

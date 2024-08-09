@@ -102,6 +102,17 @@ namespace simple_nn
 			move_mu = move_mu * momentum + mu * (1 - momentum);
 			move_var = move_var * momentum + var * (1 - momentum);
 #else
+#if TRUNC_DELAYED == 1
+        if(delayed)
+#if TRUNC_APPROACH == 0
+            trunc_pr_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+#elif TRUNC_APPROACH == 1
+            trunc_2k_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),false);
+#elif TRUNC_APPROACH == 2
+            trunc_exact_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+#endif
+        delayed = true;
+#endif
 			normalize_and_shift(prev_out, is_training);
 #endif
 	}
@@ -154,9 +165,17 @@ namespace simple_nn
 				for (int j = 0; j < hw; j++) {
 #if PUBLIC_WEIGHTS == 0
 					this->output(i, j) = (prev_out(i, j) - m).prepare_dot(s);
+#if TRUNC_APPROACH == 0
                     this->output(i, j).mask_and_send_dot();
 #else
+                    this->output(i, j).mask_and_send_dot_without_trunc();
+#endif
+#else
+#if TRUNC_APPROACH == 0
                     this->output(i, j) = (prev_out(i, j) - m) * s;
+#else
+                    this->output(i, j) = (prev_out(i, j) - m).mult_public(s);
+#endif
 #endif
 				}
 			}
@@ -167,15 +186,37 @@ namespace simple_nn
 				int i = c + ch * n;
 				for (int j = 0; j < hw; j++) {
 #if PUBLIC_WEIGHTS == 0
+#if TRUNC_APPROACH == 0
 					this->output(i, j).complete_mult();
 #else
+                    this->output(i, j).complete_mult_without_trunc();
+#endif
+#else
+#if TRUNC_APPROACH == 0
                     this->output(i, j).complete_public_mult_fixed();
 #endif
+#endif
+
+#if TRUNC_APPROACH == 0
                     this->output(i, j) += beta[c]; // Optimized in
-				}
+#endif	
+                }
 			}
 		}
         T::communicate();
+#if TRUNC_APPROACH != 0
+        trunc_2k_in_place(this->output.data(), this->output.size(),false);
+        for (int n = 0; n < batch; n++) {
+            for (int c = 0; c < ch; c++) {
+                int i = c + ch * n;
+                for (int j = 0; j < hw; j++) {
+                    this->output(i, j) += beta[c];
+                }
+            }
+        }
+#endif
+
+
 	}
 
 

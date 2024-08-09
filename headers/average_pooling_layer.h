@@ -65,6 +65,17 @@ namespace simple_nn
     template<typename T>
 	void AvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
+#if TRUNC_DELAYED == 1
+        if(delayed)
+            #if TRUNC_APPROACH == 0
+                trunc_pr_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+            #elif TRUNC_APPROACH == 1
+                trunc_2k_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),false);
+            #elif TRUNC_APPROACH == 2
+                trunc_exact_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+            #endif
+        delayed = false;
+#endif
         T::communicate();
         this->output.setZero();
 		T* out = this->output.data();

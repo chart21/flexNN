@@ -60,6 +60,17 @@ namespace simple_nn
     template<typename T>
 	void Linear<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
+#if TRUNC_DELAYED == 1
+        if(delayed)
+#if TRUNC_APPROACH == 0
+            trunc_pr_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+#elif TRUNC_APPROACH == 1
+            trunc_2k_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),false);
+#elif TRUNC_APPROACH == 2
+            trunc_exact_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+#endif
+        delayed = true;
+#endif
         
         for (int n = 0; n < batch; n++) {
 
@@ -72,6 +83,11 @@ namespace simple_nn
             T::communicate();
             auto C = this->output.data();
             complete_GEMM(C, this->output.size());
+            #if TRUNC_DELAYED == 0 && TRUNC_APPROACH == 1
+                trunc_2k_in_place(this->output.data(), this->output.size(),false);
+            #elif TRUNC_DELAYED == 0 && TRUNC_APPROACH == 2
+                trunc_exact_in_place(this->output.data(), this->output.size());
+            #endif
           
             auto B = b.data();
             for (int n = 0; n < batch; n++) 
