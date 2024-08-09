@@ -53,6 +53,17 @@ void AdaptiveAvgPool2d<T>::set_layer(const std::vector<int>& input_shape)
 template<typename T>
 void AdaptiveAvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 {
+#if TRUNC_DELAYED == 1
+        if(delayed)
+            #if TRUNC_APPROACH == 0
+                trunc_pr_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+            #elif TRUNC_APPROACH == 1
+                trunc_2k_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),false);
+            #elif TRUNC_APPROACH == 2
+                trunc_exact_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+            #endif
+        delayed = false;
+#endif
     T* out = this->output.data();
     const T* pout = prev_out.data();
 
@@ -83,7 +94,8 @@ void AdaptiveAvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
                     out[out_idx] = out[out_idx].prepare_div_exp2(h_end - h_start);
                 else
                     out[out_idx] *= FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/(h_end - h_start));
-#elif TRUNC_THEN_MULT == 0
+/* #elif TRUNC_THEN_MULT == 0 */
+#else
                     out[out_idx] = out[out_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/(h_end - h_start)));
 #endif
                 }
@@ -95,33 +107,39 @@ void AdaptiveAvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
         for (int i = 0; i < this->output.size(); i++)
             out[i].complete_public_mult_fixed();
 #else
-    #if TRUNC_THEN_MULT == 1
-        trunc_2k_in_place(out, this->output.size()); // trunc before mult with demoniator
-        T::communicate();
+    /* #if TRUNC_THEN_MULT == 1 */ //TODO: Check if this is needed
+/* #if TRUNC_APPROACH == 1 */
+    /*     trunc_2k_in_place(out, this->output.size()); // trunc before mult with demoniator */
+/* #elif TRUNC_APPROACH == 2 */
+    /*     trunc_exact_in_place(out, this->output.size()); */
+/* #endif */
+    /*     T::communicate(); */
 
 
-    for (int n = 0; n < batch; ++n) {
-        for (int c = 0; c < ch; ++c) {
-            for (int h = 0; h < oh; ++h) {
-                for (int w = 0; w < ow; ++w) {
-                    // Calculate the start and end indices for the kernel
-                    int h_start = h * stride_h;
-                    int h_end = std::min(h_start + kernel_h, ih);
-                    int w_start = w * stride_w;
-                    int w_end = std::min(w_start + kernel_w, iw);
-                    int out_idx = w + ow * (h + oh * (c + ch * n));
-                    out[out_idx] = out[out_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/(h_end - h_start)));
-                }
-            }
-        }
-    }
-
-
-    #else
-        trunc_2k_in_place(out, this->output.size());
+    /* for (int n = 0; n < batch; ++n) { */
+    /*     for (int c = 0; c < ch; ++c) { */
+    /*         for (int h = 0; h < oh; ++h) { */
+    /*             for (int w = 0; w < ow; ++w) { */
+    /*                 // Calculate the start and end indices for the kernel */
+    /*                 int h_start = h * stride_h; */
+    /*                 int h_end = std::min(h_start + kernel_h, ih); */
+    /*                 int w_start = w * stride_w; */
+    /*                 int w_end = std::min(w_start + kernel_w, iw); */
+    /*                 int out_idx = w + ow * (h + oh * (c + ch * n)); */
+    /*                 out[out_idx] = out[out_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/(h_end - h_start))); */
+    /*             } */
+    /*         } */
+    /*     } */
+    /* } */
+    /* #else */
+    #if TRUNC_APPROACH == 1
+        trunc_2k_in_place(out, this->output.size(),false);
+    #elif TRUNC_APPROACH == 2
+        trunc_exact_in_place(out, this->output.size());
+    #endif
         T::communicate();
     #endif
-#endif
+/* #endif */
 }
 
     template<typename T>

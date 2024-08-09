@@ -102,7 +102,7 @@ namespace simple_nn
 #elif TRUNC_APPROACH == 2
             trunc_exact_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
 #endif
-        delayed = true;
+        delayed = false;
 #endif
 			normalize_and_shift(prev_out, is_training);
         #endif
@@ -143,16 +143,16 @@ namespace simple_nn
 			for (int j = 0; j < n_feat; j++) {
 #if PUBLIC_WEIGHTS == 0
 				this->output(i, j) = (prev_out(i, j) - M[j]).prepare_dot( V[j]);
-#if TRUNC_APPROACH == 0
-                this->output(i, j).mask_and_send_dot();
-#else
+#if TRUNC_APPROACH > 0
                 this->output(i, j).mask_and_send_dot_without_trunc();
+#else
+                this->output(i, j).mask_and_send_dot();
 #endif
 #else
-#if TRUNC_APPROACH == 0
-                this->output(i, j) = (prev_out(i, j) - M[j]) * V[j];
-#else
+#if TRUNC_APPROACH > 0
                 this->output(i, j) = (prev_out(i, j) - M[j]).mult_public(V[j]);
+#else
+                this->output(i, j) = (prev_out(i, j) - M[j]) * V[j];
 #endif
 #endif
 			}
@@ -161,30 +161,35 @@ namespace simple_nn
 		for (int i = 0; i < batch; i++) {
 			for (int j = 0; j < n_feat; j++) {
 #if PUBLIC_WEIGHTS == 0
-#if TRUNC_APPROACH == 0
-                this->output(i, j).complete_mult();
-#else
+#if TRUNC_APPROACH > 0
 				this->output(i, j).complete_mult_without_trunc();
+#else
+                this->output(i, j).complete_mult();
+                this->output(i, j) += beta[j];
 #endif
 #else
-#if TRUNC_APPROACH == 0
+#if TRUNC_APPROACH > 0
+                // do nothing
+#else
                 this->output(i, j).complete_public_mult_fixed();
-#endif
-#endif
-#if TRUNC_APPROACH == 0
                 this->output(i, j) += beta[j];
+#endif
 #endif
 			}
 		}
         T::communicate();
-#if TRUNC_APPROACH != 0
+#if TRUNC_APPROACH > 0
+#if TRUNC_APPROACH == 1
         trunc_2k_in_place(this->output.data(), this->output.size(),false);
-        for (int i = 0; i < batch; i++) {
-            for (int j = 0; j < n_feat; j++) {
-                this->output(i, j) += beta[j];
-        }
-            }
+#elif TRUNC_APPROACH == 2
+        trunc_exact_in_place(this->output.data(), this->output.size());
 #endif
+		for (int i = 0; i < batch; i++) 
+			for (int j = 0; j < n_feat; j++) 
+                this->output(i, j) += beta[j];
+#endif
+
+        
     }
 
 
