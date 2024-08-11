@@ -132,13 +132,6 @@ void AdaptiveAvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
     /*     } */
     /* } */
     /* #else */
-    #if TRUNC_APPROACH == 1
-        trunc_2k_in_place(out, this->output.size(),false);
-    #elif TRUNC_APPROACH == 2
-        trunc_exact_in_place(out, this->output.size());
-    #endif
-        T::communicate();
-    #endif
 /* #endif */
 }
 
