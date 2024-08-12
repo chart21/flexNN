@@ -107,12 +107,13 @@ void AdaptiveAvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
         for (int i = 0; i < this->output.size(); i++)
             out[i].complete_public_mult_fixed();
 #else
-    /* #if TRUNC_THEN_MULT == 1 */ //TODO: Check if this is needed
-/* #if TRUNC_APPROACH == 1 */
-    /*     trunc_2k_in_place(out, this->output.size()); // trunc before mult with demoniator */
-/* #elif TRUNC_APPROACH == 2 */
-    /*     trunc_exact_in_place(out, this->output.size()); */
-/* #endif */
+//#if TRUNC_THEN_MULT == 1 */ //TODO: Check if this is needed
+#if TRUNC_APPROACH == 1 
+     trunc_2k_in_place(out, this->output.size(),false); // trunc before mult with demoniator */
+ #elif TRUNC_APPROACH == 2 
+     trunc_exact_in_place(out, this->output.size()); 
+ #endif */
+#endif
     /*     T::communicate(); */
 
 
