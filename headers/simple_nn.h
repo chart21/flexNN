@@ -207,6 +207,7 @@ namespace simple_nn
 
         float error(0);
 		for (int i = 0; i < batch; i++) {
+            /* print_online("Predicted:" + to_string(classified[i]) + " Actual:" + to_string(labels[i]) + "\n"); */
 			if (classified[i] != labels[i]) 
             {
                 error+=1;

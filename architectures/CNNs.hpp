@@ -378,3 +378,116 @@ class AlexNet_32 : public SimpleNN<T>
     }
 };
 
+
+/* class AlexNet_PyTorch(nn.Module): */
+/*     def __init__(self, num_classes: int = 1000, dropout: float = 0.5) -> None: */
+/*         super().__init__() */
+/*         _log_api_usage_once(self) */
+/*         self.features = nn.Sequential( */
+/*             nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2), */
+/*             nn.ReLU(inplace=True), */
+/*             nn.MaxPool2d(kernel_size=3, stride=2), */
+/*             nn.Conv2d(64, 192, kernel_size=5, padding=2), */
+/*             nn.ReLU(inplace=True), */
+/*             nn.MaxPool2d(kernel_size=3, stride=2), */
+/*             nn.Conv2d(192, 384, kernel_size=3, padding=1), */
+/*             nn.ReLU(inplace=True), */
+/*             nn.Conv2d(384, 256, kernel_size=3, padding=1), */
+/*             nn.ReLU(inplace=True), */
+/*             nn.Conv2d(256, 256, kernel_size=3, padding=1), */
+/*             nn.ReLU(inplace=True), */
+/*             nn.MaxPool2d(kernel_size=3, stride=2), */
+/*         ) */
+/*         self.avgpool = nn.AdaptiveAvgPool2d((6, 6)) */
+/*         self.classifier = nn.Sequential( */
+/*             nn.Dropout(p=dropout), */
+/*             nn.Linear(256 * 6 * 6, 4096), */
+/*             nn.ReLU(inplace=True), */
+/*             nn.Dropout(p=dropout), */
+/*             nn.Linear(4096, 4096), */
+/*             nn.ReLU(inplace=True), */
+/*             nn.Linear(4096, num_classes), */
+/*         ) */
+
+/*     def forward(self, x: torch.Tensor) -> torch.Tensor: */
+/*         x = self.features(x) */
+/*         x = self.avgpool(x) */
+/*         x = torch.flatten(x, 1) */
+/*         x = self.classifier(x) */
+/*         return x */
+
+template <typename T>
+class AlexNet_PyTorch : public SimpleNN<T>
+{
+    public:
+    AlexNet_PyTorch(int num_classes)
+    {
+        this->add(new Conv2d<T>(3,64,11,4,2));
+        this->add(new ReLU<T>());
+        this->add(new MaxPool2d<T>(3,2));
+        this->add(new Conv2d<T>(64,192,5,1,2));
+        this->add(new ReLU<T>());
+        this->add(new MaxPool2d<T>(3,2));
+        this->add(new Conv2d<T>(192,384,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(384,256,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(256,256,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new MaxPool2d<T>(3,2));
+        this->add(new AdaptiveAvgPool2d<T>(6,6));
+        this->add(new Flatten<T>());
+        this->add(new Linear<T>(9216,4096));
+        this->add(new ReLU<T>());
+        this->add(new Linear<T>(4096,4096));
+        this->add(new ReLU<T>());
+        this->add(new Linear<T>(4096,num_classes));
+    }
+};
+
+template <typename T>
+class VGG16_PyTorch : public SimpleNN<T>
+{
+    public:
+    VGG16_PyTorch(int num_classes)
+    {
+        this->add(new Conv2d<T>(3,64,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(64,64,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new MaxPool2d<T>(2,2));
+        this->add(new Conv2d<T>(64,128,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(128,128,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new MaxPool2d<T>(2,2));
+        this->add(new Conv2d<T>(128,256,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(256,256,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(256,256,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new MaxPool2d<T>(2,2));
+        this->add(new Conv2d<T>(256,512,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(512,512,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(512,512,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new MaxPool2d<T>(2,2));
+        this->add(new Conv2d<T>(512,512,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(512,512,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(512,512,3,1,1));
+        this->add(new ReLU<T>());
+        this->add(new MaxPool2d<T>(2,2));
+        this->add(new AdaptiveAvgPool2d<T>(7,7));
+        this->add(new Linear<T>(25088,4096));
+        this->add(new Linear<T>(4096,4096));
+        this->add(new Linear<T>(4096,num_classes));
+    }
+
+};
+
+
