@@ -97,10 +97,12 @@ namespace simple_nn
         if(delayed)
 #if TRUNC_APPROACH == 0
             trunc_pr_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
-#elif TRUNC_APPROACH == 1
+#elif TRUNC_APPROACH == 1 || TRUNC_APPROACH == 4
             trunc_2k_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),false);
 #elif TRUNC_APPROACH == 2
             trunc_exact_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+#elif TRUNC_APPROACH == 3
+            trunc_exact_opt_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
 #endif
         delayed = false;
 #endif
@@ -179,10 +181,12 @@ namespace simple_nn
 		}
         T::communicate();
 #if TRUNC_APPROACH > 0
-#if TRUNC_APPROACH == 1
+#if TRUNC_APPROACH == 1 || TRUNC_APPROACH == 4
         trunc_2k_in_place(this->output.data(), this->output.size(),false);
 #elif TRUNC_APPROACH == 2
         trunc_exact_in_place(this->output.data(), this->output.size());
+#elif TRUNC_APPROACH == 3
+        trunc_exact_opt_in_place(this->output.data(), this->output.size());
 #endif
 		for (int i = 0; i < batch; i++) 
 			for (int j = 0; j < n_feat; j++) 

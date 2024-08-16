@@ -179,7 +179,6 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 		void forward(const MatX<T>& prev_out, bool is_training) override
 		{
             assert(this->output.size() == prev_out.size());
-
             RELU<m,k>(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data());
         }
 
