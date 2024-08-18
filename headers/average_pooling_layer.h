@@ -83,6 +83,31 @@ namespace simple_nn
 		T* out = this->output.data();
 		const T* pout = prev_out.data();
 		const int denominator = kh * kw;
+        int fractional = FRACTIONAL;
+        #if AVG_OPT == 1
+        float reciprocal = 1.0f / denominator;
+#if TRUNC_THEN_MULT == 1
+        reciprocal = reciprocal / (1 << FRACTIONAL);
+#endif
+        float epsilon = 0.0001f;
+        float last_diff = reciprocal;
+        float threshold = float(AVG_OPT_THRESHOLD)/100;
+        for(int i = FRACTIONAL; i > 0; i--){
+            std::cout << "iter: " << i << std::endl;
+            UINT_TYPE current_guess = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/float(denominator),i);
+            float back_to_float = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(current_guess, i);
+            std::cout << "Back to float: " << back_to_float << std::endl;
+            float current_delta = std::abs(reciprocal - fixedToFloat<float,INT_TYPE,UINT_TYPE,FRACTIONAL>(current_guess, i));
+            std::cout << "Current delta: " << current_delta << std::endl;
+            if(current_delta/(last_diff + epsilon) - 1 < threshold){
+                std::cout << "Current delta is smaller than threshold" << std::endl;
+                fractional = i;
+                last_diff = current_delta;
+            }
+        }
+        std::cout << "Fractional: " << fractional << std::endl;
+        #endif
+
 		for (int n = 0; n < batch; n++) {
 			for (int c = 0; c < ch; c++) {
 				for (int i = 0; i < oh; i++) {
@@ -98,13 +123,13 @@ namespace simple_nn
 								}
 							}
 						}
-                        prepare_prob_div(out[out_idx], denominator);
+                        prepare_prob_div(out[out_idx], denominator, fractional);
 					}
 				}
 			}
 		}
         T::communicate();
-        complete_prob_div(out, this->output.size(), denominator);
+        complete_prob_div(out, this->output.size(), denominator, fractional);
 	}
 
     template<typename T>
