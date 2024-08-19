@@ -84,7 +84,7 @@ namespace simple_nn
 		const T* pout = prev_out.data();
 		const int denominator = kh * kw;
         int fractional = FRACTIONAL;
-        #if AVG_OPT == 1
+        #if AVG_OPT == 1 && TRUNC_APPROACH != 3 // Currently this optimization is not supported for trunc_approach 3
         float reciprocal = 1.0f / denominator;
 #if TRUNC_THEN_MULT == 1
         reciprocal = reciprocal / (1 << FRACTIONAL);
@@ -99,10 +99,24 @@ namespace simple_nn
             std::cout << "Back to float: " << back_to_float << std::endl;
             float current_delta = std::abs(reciprocal - fixedToFloat<float,INT_TYPE,UINT_TYPE,FRACTIONAL>(current_guess, i));
             std::cout << "Current delta: " << current_delta << std::endl;
-            if(current_delta/(last_diff + epsilon) - 1 < threshold){
-                std::cout << "Current delta is smaller than threshold" << std::endl;
+            if(last_diff == 0)
+            {
+                if(current_delta == 0)
+                {
+                std::cout << "Current delta is 0" << std::endl;
                 fractional = i;
                 last_diff = current_delta;
+                }
+            }
+            else if(current_delta/(last_diff) - 1 <= threshold)
+            {
+                std::cout << "Current delta is withinn threshold" << std::endl;
+                fractional = i;
+                last_diff = current_delta;
+            }
+            else{
+                std::cout << "Current delta is bigger than threshold" << std::endl;
+                break;
             }
         }
         std::cout << "Fractional: " << fractional << std::endl;
