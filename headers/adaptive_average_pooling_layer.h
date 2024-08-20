@@ -115,10 +115,10 @@ for (int i = 0; i < this->output.size(); i++)
         if (((denominators[i]) & (denominators[i] - 1)) == 0) // if power of 2
             out[i] = out[i].prepare_div_exp2(denominators[i]);
         else
-            out[i] *= FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/(denominators[i]));
+            out[i] *= FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/(FLOATTYPE(denominators[i])));
 /* #elif TRUNC_THEN_MULT == 0 */
 #else
-            out[i] = out[i].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/(denominators[i])));
+            out[i] = out[i].mult_public(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/FLOATTYPE(denominators[i])));
 #endif
 }
 #if TRUNC_APPROACH == 0 || TRUNC_APPROACH == 4

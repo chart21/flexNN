@@ -85,19 +85,21 @@ namespace simple_nn
 		const int denominator = kh * kw;
         int fractional = FRACTIONAL;
         #if AVG_OPT == 1 && TRUNC_APPROACH != 3 // Currently this optimization is not supported for trunc_approach 3
-        float reciprocal = 1.0f / denominator;
+        FLOATTYPE reciprocal = 1.0d / denominator;
+        std::cout << "reciprocal: " << reciprocal << std::endl;
 #if TRUNC_THEN_MULT == 1
         reciprocal = reciprocal / (1 << FRACTIONAL);
+        std::cout << "reciprocal after trunc: " << reciprocal << std::endl;
 #endif
-        float epsilon = 0.0001f;
-        float last_diff = reciprocal;
-        float threshold = float(AVG_OPT_THRESHOLD)/100;
+        FLOATTYPE epsilon = 0.0001f;
+        FLOATTYPE last_diff = reciprocal;
+        FLOATTYPE threshold = FLOATTYPE(AVG_OPT_THRESHOLD)/100;
         for(int i = FRACTIONAL; i > 0; i--){
             std::cout << "iter: " << i << std::endl;
-            UINT_TYPE current_guess = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/float(denominator),i);
-            float back_to_float = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(current_guess, i);
+            UINT_TYPE current_guess = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/FLOATTYPE(denominator),i);
+            FLOATTYPE back_to_float = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(current_guess, i);
             std::cout << "Back to float: " << back_to_float << std::endl;
-            float current_delta = std::abs(reciprocal - fixedToFloat<float,INT_TYPE,UINT_TYPE,FRACTIONAL>(current_guess, i));
+            FLOATTYPE current_delta = std::abs(reciprocal - fixedToFloat<FLOATTYPE,INT_TYPE,UINT_TYPE,FRACTIONAL>(current_guess, i));
             std::cout << "Current delta: " << current_delta << std::endl;
             if(last_diff == 0)
             {
@@ -151,7 +153,7 @@ namespace simple_nn
 	{
 		T* pd = prev_delta.data();
 		const T* d = this->delta.data();
-		float denominator = kh * kw;
+		FLOATTYPE denominator = kh * kw;
 		for (int n = 0; n < batch; n++) {
 			for (int c = 0; c < ch; c++) {
 				for (int i = 0; i < oh; i++) {

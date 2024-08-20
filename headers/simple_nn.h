@@ -179,7 +179,7 @@ namespace simple_nn
                 alignas(sizeof(DATTYPE)) UINT_TYPE tmp[BASE_DIV];
                 output(i,j).complete_reveal_to_all(tmp);
                 for (int k = 0; k < BASE_DIV; k++) {
-                    output_float(i*(BASE_DIV)+k,j) = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(tmp[k]);
+                    output_float(i*(BASE_DIV)+k,j) = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(tmp[k]);
                 }
         }
         } 
@@ -189,7 +189,7 @@ namespace simple_nn
         for (int i = 0; i < output.rows(); i++) {
             for (int j = 0; j < output.cols(); j++) {
 
-                output_float(i,j) = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(output(i,j).complete_reveal_to_all_single());
+                output_float(i,j) = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(output(i,j).complete_reveal_to_all_single());
                 /* output_float(i,j) = 0; */
             }
         }
@@ -374,17 +374,17 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                 for (int i = 0; i < s1; i++) 
                 {
 #if PUBLIC_WEIGHTS == 0
-                    lc->W(i / lc->W.cols(), i % lc->W.cols()).template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]));
+                    lc->W(i / lc->W.cols(), i % lc->W.cols()).template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]));
 #else
-                    lc->W(i / lc->W.cols(), i % lc->W.cols()) = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]);
+                    lc->W(i / lc->W.cols(), i % lc->W.cols()) = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]);
 #endif
                 }
                 for (int i = 0; i < s2; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
-                    lc->b[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]));
+                    lc->b[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]));
 #else
-                    lc->b[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]);
+                    lc->b[i] = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]);
 #endif
                 }
             }
@@ -418,18 +418,18 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                 for (int i = 0; i < s1; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
-                    lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()).template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]));
+                    lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()).template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]));
                     
 #else
-                    lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()) = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]);
+                    lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()) = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]);
 #endif
                 } 
                 for (int i = 0; i < s2; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
-                    lc->bias[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]));
+                    lc->bias[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]));
 #else
-                    lc->bias[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]);
+                    lc->bias[i] = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]);
 #endif
                 }
             }
@@ -454,23 +454,23 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                 for (int i = 0; i < s1; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
-                    lc->move_mu[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]));
+                    lc->move_mu[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]));
 #else
-                    lc->move_mu[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]);
+                    lc->move_mu[i] = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]);
 #endif
                 } 
                 //Optimization, fuse the division with the square root and gamma multiplication
                 for (int i = 0; i < s2; i++)
                 {
                     double new_var = static_cast<double>(tempMatrix3[i]) / std::sqrt(static_cast<double>(tempMatrix2[i]) + 0.00001); // Optimiation, fuse the division with the square root and gamma multiplication
-                                                                                                                                                     float var = static_cast<float>(new_var);
+                                                                                                                                                     /* float var = static_cast<float>(new_var); */
                     /* float var = tempMatrix3[i] / std::sqrt(tempMatrix2[i] + 0.00001f); */
                    /* if(MODELOWNER == PSELF && current_phase == PHASE_LIVE) */
                    /*      std::cout << "gamma" << tempMatrix3[i] << "var" << tempMatrix2[i] << "new var" << var << "\n"; */
 #if PUBLIC_WEIGHTS == 0
-                    lc->move_var[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(var));
+                    lc->move_var[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(new_var));
 #else
-                    lc->move_var[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(var);
+                    lc->move_var[i] = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(new_var);
 #endif
                 }
                 /* for (int i = 0; i < s3; i++) */
@@ -484,9 +484,9 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                 for (int i = 0; i < s4; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
-                    lc->beta[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix4[i]));
+                    lc->beta[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix4[i]));
 #else
-                    lc->beta[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix4[i]);
+                    lc->beta[i] = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix4[i]);
 #endif
                 }
         }
@@ -510,23 +510,23 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                 for (int i = 0; i < s1; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
-                    lc->move_mu[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]));
+                    lc->move_mu[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]));
 #else
-                    lc->move_mu[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]);
+                    lc->move_mu[i] = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]);
 #endif
                 } 
                 for (int i = 0; i < s2; i++)
                 {
                     double new_var = static_cast<double>(tempMatrix3[i]) / std::sqrt(static_cast<double>(tempMatrix2[i]) + 0.00001); // Optimiation, fuse the division with the square root and gamma multiplication
-                                                                                                                                                     float var = static_cast<float>(new_var);
+                                                                                                                                                     /* float var = static_cast<float>(new_var); */
                     /* float var = tempMatrix3[i] / std::sqrt(tempMatrix2[i] + 0.00001f); // Optimiation, fuse the division with the square root and gamma multiplication */
                    /* if(MODELOWNER == PSELF && current_phase == PHASE_LIVE) */
                    /*      std::cout << "gamma" << tempMatrix3[i] << "var" << tempMatrix2[i] << "new var" << var << "\n"; */
                     /* float var = 1 / std::sqrt(tempMatrix2[i] + 0.00001f); */
 #if PUBLIC_WEIGHTS == 0
-                    lc->move_var[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(var));
+                    lc->move_var[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(new_var));
 #else
-                    lc->move_var[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(var);
+                    lc->move_var[i] = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(new_var);
 #endif
                 }
                 /* for (int i = 0; i < s3; i++) */
@@ -540,9 +540,9 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                 for (int i = 0; i < s4; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
-                    lc->beta[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix4[i]));
+                    lc->beta[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix4[i]));
 #else
-                    lc->beta[i] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix4[i]);
+                    lc->beta[i] = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix4[i]);
 #endif
                 }
 
@@ -668,7 +668,7 @@ void SimpleNN<T>::complete_read_params()
 #endif
         for( int c = 0; c < ch; c++)
             for (int k = 0; k < BASE_DIV; ++k) {
-                tmp[c][k] = FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(test_X(i+k*ch+c, j));
+                tmp[c][k] = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(test_X(i+k*ch+c, j));
             }
         for( int c = 0; c < ch; c++)
         {
