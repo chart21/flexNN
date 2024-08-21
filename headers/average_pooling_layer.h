@@ -86,42 +86,33 @@ namespace simple_nn
         int fractional = FRACTIONAL;
         #if AVG_OPT == 1 && TRUNC_APPROACH != 3 // Currently this optimization is not supported for trunc_approach 3
         FLOATTYPE reciprocal = 1.0d / denominator;
-        std::cout << "reciprocal: " << reciprocal << std::endl;
 #if TRUNC_THEN_MULT == 1
         reciprocal = reciprocal / (1 << FRACTIONAL);
-        std::cout << "reciprocal after trunc: " << reciprocal << std::endl;
 #endif
         FLOATTYPE epsilon = 0.0001f;
         FLOATTYPE last_diff = reciprocal;
         FLOATTYPE threshold = FLOATTYPE(AVG_OPT_THRESHOLD)/100;
         for(int i = FRACTIONAL; i > 0; i--){
-            std::cout << "iter: " << i << std::endl;
             UINT_TYPE current_guess = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/FLOATTYPE(denominator),i);
             FLOATTYPE back_to_float = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(current_guess, i);
-            std::cout << "Back to float: " << back_to_float << std::endl;
             FLOATTYPE current_delta = std::abs(reciprocal - fixedToFloat<FLOATTYPE,INT_TYPE,UINT_TYPE,FRACTIONAL>(current_guess, i));
-            std::cout << "Current delta: " << current_delta << std::endl;
             if(last_diff == 0)
             {
                 if(current_delta == 0)
                 {
-                std::cout << "Current delta is 0" << std::endl;
                 fractional = i;
                 last_diff = current_delta;
                 }
             }
             else if(current_delta/(last_diff) - 1 <= threshold)
             {
-                std::cout << "Current delta is withinn threshold" << std::endl;
                 fractional = i;
                 last_diff = current_delta;
             }
             else{
-                std::cout << "Current delta is bigger than threshold" << std::endl;
                 break;
             }
         }
-        std::cout << "Fractional: " << fractional << std::endl;
         #endif
 
 		for (int n = 0; n < batch; n++) {
