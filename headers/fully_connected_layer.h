@@ -97,8 +97,8 @@ namespace simple_nn
             for (int n = 0; n < batch; n++) 
                 for(int i = 0; i < this->output.cols(); ++i)
                     add_bias(C[n * this->output.cols() + i], B[i]);
-           }
-		
+
+}
 	
 
     template<typename T>

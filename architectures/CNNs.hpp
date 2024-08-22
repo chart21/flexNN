@@ -127,7 +127,9 @@ class VGG : public SimpleNN<T>
         this->add(new AvgPool2d<T>(2,2));
         this->add(new Flatten<T>());
         this->add(new Linear<T>(4608,4096));
+        this->add(new ReLU<T>());
         this->add(new Linear<T>(4096,4096));
+        this->add(new ReLU<T>());
         this->add(new Linear<T>(4096,1000));
     }
     else
@@ -484,7 +486,9 @@ class VGG16_PyTorch : public SimpleNN<T>
         this->add(new MaxPool2d<T>(2,2));
         this->add(new AdaptiveAvgPool2d<T>(7,7));
         this->add(new Linear<T>(25088,4096));
+        this->add(new ReLU<T>());
         this->add(new Linear<T>(4096,4096));
+        this->add(new ReLU<T>());
         this->add(new Linear<T>(4096,num_classes));
     }
 

@@ -102,7 +102,8 @@ void AdaptiveAvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
     }
 if(all_one)
 {
-print_online("All denominators in AdaptiveAvgPool2d are 1, skipping division");
+/* print_online("All denominators in AdaptiveAvgPool2d are 1, skipping division"); */
+
 delete[] denominators;
 return;
 }
