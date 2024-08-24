@@ -100,6 +100,8 @@ void AdaptiveAvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
             }
         }
     }
+
+#if AVG1_OPT == 1
 if(all_one)
 {
 /* print_online("All denominators in AdaptiveAvgPool2d are 1, skipping division"); */
@@ -107,15 +109,18 @@ if(all_one)
 delete[] denominators;
 return;
 }
+#endif
 
 for (int i = 0; i < this->output.size(); i++)
 {
 #if TRUNC_APPROACH == 0 || TRUNC_APPROACH == 4
+    #if AVG1_OPT == 1
         if(denominators[i] <= 1)
             continue;
         if (((denominators[i]) & (denominators[i] - 1)) == 0) // if power of 2
             out[i] = out[i].prepare_div_exp2(denominators[i]);
         else
+    #endif
             out[i] *= FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/(FLOATTYPE(denominators[i])));
 /* #elif TRUNC_THEN_MULT == 0 */
 #else
