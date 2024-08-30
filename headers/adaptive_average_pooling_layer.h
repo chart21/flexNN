@@ -58,14 +58,16 @@ void AdaptiveAvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
             #if TRUNC_APPROACH == 0
                 trunc_pr_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
             #elif TRUNC_APPROACH == 1 || TRUNC_APPROACH == 4
-                trunc_2k_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),false);
+                trunc_2k_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),all_positive);
             #elif TRUNC_APPROACH == 2
                 trunc_exact_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
             #elif TRUNC_APPROACH == 3
-                trunc_exact_opt_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+                trunc_exact_opt_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),all_positive);
             #endif
         delayed = false;
 #endif
+
+
     T* out = this->output.data();
     const T* pout = prev_out.data();
     auto denominators = new int[this->output.size()];
@@ -139,11 +141,11 @@ for (int i = 0; i < this->output.size(); i++)
 delete[] denominators;
 
 #if TRUNC_APPROACH == 1 
-     trunc_2k_in_place(out, this->output.size(),true); // trunc before mult with demoniator */
+     trunc_2k_in_place(out, this->output.size(),all_positive); // trunc before mult with demoniator */
  #elif TRUNC_APPROACH == 2 
      trunc_exact_in_place(out, this->output.size()); 
 #elif TRUNC_APPROACH == 3
-     trunc_exact_opt_in_place(out, this->output.size(),true);
+     trunc_exact_opt_in_place(out, this->output.size(),all_positive);
  #endif 
 
 

@@ -98,13 +98,16 @@ namespace simple_nn
 #if TRUNC_APPROACH == 0
             trunc_pr_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
 #elif TRUNC_APPROACH == 1 || TRUNC_APPROACH == 4
-            trunc_2k_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),false);
+            trunc_2k_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),all_positive);
 #elif TRUNC_APPROACH == 2
             trunc_exact_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
 #elif TRUNC_APPROACH == 3
-            trunc_exact_opt_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+            trunc_exact_opt_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),all_positive);
 #endif
-        delayed = false;
+        delayed = true;
+#endif
+#if TRUNC_APPROACH > 0
+    all_positive = false;
 #endif
 			normalize_and_shift(prev_out, is_training);
         #endif
@@ -180,7 +183,9 @@ namespace simple_nn
 			}
 		}
         T::communicate();
-#if TRUNC_APPROACH > 0
+
+
+#if TRUNC_APPROACH > 0 && TRUNC_DELAYED == 0
 #if TRUNC_APPROACH == 1 || TRUNC_APPROACH == 4
         trunc_2k_in_place(this->output.data(), this->output.size(),false);
 #elif TRUNC_APPROACH == 2
@@ -188,9 +193,12 @@ namespace simple_nn
 #elif TRUNC_APPROACH == 3
         trunc_exact_opt_in_place(this->output.data(), this->output.size());
 #endif
-		for (int i = 0; i < batch; i++) 
+#endif
+
+#if TRUNC_APPROACH > 0 || TRUNC_DELAYED == 1
+        for (int i = 0; i < batch; i++) 
 			for (int j = 0; j < n_feat; j++) 
-                this->output(i, j) += beta[j];
+                this->output(i, j).add_bias(beta[j]);
 #endif
 
         

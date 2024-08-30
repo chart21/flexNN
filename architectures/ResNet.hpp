@@ -199,8 +199,20 @@ public:
             if(this->identity_layers.size() != 0 && i < this->identity_layers.size()) {
                 while(this->identity_layers[i] == l)  { 
                         if(this->identity_layers_type[i] == "Identity_Store") {
+#if TRUNC_DELAYED == 0
                             identity = out; //store identity of current layer
-
+#else
+if(delayed)
+    identity = out;
+else
+{
+    /* identity = out.mult_public(UINT_TYPE(1) << FRACTIONAL); */
+    identity = out;
+    for(int i = 0; i < identity.size(); i++) {
+        identity.data()[i] = identity.data()[i].mult_public(UINT_TYPE(1) << FRACTIONAL);
+    }
+}
+#endif
                         }
                         else if(this->identity_layers_type[i] == "Identity_OP_Start") {
                             //network starts operating on identity, storing last output
