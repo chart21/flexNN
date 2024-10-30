@@ -152,7 +152,8 @@ class LeNet : public SimpleNN<T>
         this->add(new Conv2d<T>(1,6,5,1,2));
         this->add(new ReLU<T>());
         this->add(new AvgPool2d<T>(2,2));
-        this->add(new Conv2d<T>(6,16,5,1,0));
+        this->add(new Conv2d<T>(6,16,5,1,0,true,"kaiming_uniform",false));
+        // additional options: use bias -> true, init_weight -> kaiming_uniform, truncate -> false
         this->add(new ReLU<T>());
         this->add(new AvgPool2d<T>(2,2));
         this->add(new Flatten<T>());
