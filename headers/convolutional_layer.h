@@ -22,6 +22,7 @@ namespace simple_nn
         int stride;
         bool use_bias;
 		string option;
+        bool truncate;
 		MatX<T> dkernel;
 		VecX<T> dbias;
 		MatX<T> im_col;
@@ -34,7 +35,7 @@ namespace simple_nn
 		VecX<T> bias;
 #endif
 		Conv2d(int in_channels, int out_channels, int kernel_size, int stride, int padding, bool use_bias = "true",
-			string option = "kaiming_uniform");
+			string option = "kaiming_uniform", bool truncate = true);
 		void set_layer(const vector<int>& input_shape) override;
 		void forward(const MatX<T>& prev_out, bool is_training) override;
 		void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override;
@@ -51,7 +52,8 @@ namespace simple_nn
         int stride,
 		int padding,
         bool use_bias,
-		string option
+		string option,
+        bool truncate
 	) :
 		Layer<T>(LayerType::CONV2D),
 		batch(0),
@@ -68,8 +70,9 @@ namespace simple_nn
         stride(stride),
 		pad(padding),
         use_bias(use_bias),
-		option(option) {}
-
+		option(option),
+        truncate(truncate)
+        {}
     template<typename T>
 	void Conv2d<T>::set_layer(const vector<int>& input_shape)
 	{
@@ -123,7 +126,10 @@ namespace simple_nn
 #elif TRUNC_APPROACH == 3
             trunc_exact_opt_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),all_positive);
 #endif
+    if(truncate)
         delayed = true;
+    else
+        delayed = false;
 #endif
 
 
@@ -141,7 +147,7 @@ namespace simple_nn
             const T* W = kernel.data();
             int local_batch = 1;
             T::CONV_2D( im,W,C, local_batch, ih, iw, ic, oc, kh, kw, pad, stride, 1);
-            send_GEMM_GPU(C, oc, ohw);
+            send_GEMM_GPU(C, oc, ohw, truncate);
         }
 #else // CPU or outsource only GEMM to GPU
 		for (int n = 0; n < batch; n++) {
@@ -158,15 +164,17 @@ namespace simple_nn
             const int m = oc;
             const int p = ohw;
             const int f = kernel.cols();
-            prepare_GEMM(A, B, C, m, p, f,true);
+            prepare_GEMM(A, B, C, m, p, f,true, truncate);
         }
 #endif
     T::communicate();
     for (int n = 0; n < batch; n++) {
         auto C = this->output.data() + (oc * ohw) * n;
-        complete_GEMM(C, oc, ohw);
+        complete_GEMM(C, oc, ohw, truncate);
     }
-    
+
+if(truncate) 
+{
     #if TRUNC_DELAYED == 0 && (TRUNC_APPROACH == 1 || TRUNC_APPROACH == 4)
         trunc_2k_in_place(this->output.data(), this->output.size(),false);
     #elif TRUNC_DELAYED == 0 && TRUNC_APPROACH == 2
@@ -174,6 +182,7 @@ namespace simple_nn
     #elif TRUNC_DELAYED == 0 && TRUNC_APPROACH == 3
         trunc_exact_opt_in_place(this->output.data(), this->output.size());
     #endif
+}
 
 if(use_bias)
 {
