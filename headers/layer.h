@@ -48,5 +48,6 @@ namespace simple_nn
 		virtual void update_weight(float lr, float decay) { return; }
 		virtual void zero_grad() { return; }
 		virtual vector<int> output_shape() = 0;
+        virtual ~Layer() {}
 	};
 }

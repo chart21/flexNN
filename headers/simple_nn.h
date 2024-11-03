@@ -152,7 +152,10 @@ namespace simple_nn
 			if (l == 0) net[l]->forward(X, is_training);
 			else 
             {
-                net[l]->forward(net[l - 1]->output, is_training);
+                net[l]->forward(net[l - 1]->output, is_training); 
+#if IS_TRAINING == 0
+                delete net[l - 1];
+#endif
 		    }
 #if PRINT_TIMINGS == 1
                 stop_layer_stats(l);
@@ -699,6 +702,10 @@ void SimpleNN<T>::complete_read_params()
 			forward(test_X, false);
 #endif
 			classify(net.back()->output, classified);
+#if IS_TRAINING == 0
+            delete net.back();
+            net.clear();
+#endif
 			error_criterion(classified, Y, error_acc);
 		if(current_phase == PHASE_LIVE)	
         {
