@@ -188,10 +188,16 @@ if(use_bias)
 {
     auto C = this->output.data();
     auto B = bias.data();
+    if(truncate)
 		for (int n = 0; n < batch; n++)
             for(int i = 0; i < oc; ++i)
                 for(int j = 0; j < ohw; ++j)
-                    add_bias(C[n*oc*ohw + i*ohw + j], B[i]);
+                    add_bias(C[n*oc*ohw + i*ohw + j], B[i],truncate);
+    else
+		for (int n = 0; n < batch; n++)
+            for(int i = 0; i < oc; ++i)
+                for(int j = 0; j < ohw; ++j)
+                    add_bias_without_trunc(C[n*oc*ohw + i*ohw + j], B[i],truncate);
 }            
             
             

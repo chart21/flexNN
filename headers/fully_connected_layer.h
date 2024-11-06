@@ -12,6 +12,7 @@ namespace simple_nn
 		int in_feat;
 		int out_feat;
 		string option;
+        bool truncate;
 		MatX<T> dW;
 		RowVecX<T> db;
 	public:
@@ -22,7 +23,7 @@ namespace simple_nn
 		MatX<T> W;
 		RowVecX<T> b;
 #endif
-		Linear(int in_features, int out_features, string option = "kaiming_uniform");
+		Linear(int in_features, int out_features, string option = "kaiming_uniform", bool truncate = true);
 		void set_layer(const vector<int>& input_shape) override;
 		void forward(const MatX<T>& prev_out, bool is_training) override;
 		void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override;
@@ -37,7 +38,8 @@ namespace simple_nn
 		batch(0),
 		in_feat(in_features),
 		out_feat(out_features),
-		option(option) {}
+		option(option), 
+        bool truncate,{}
 
     template<typename T>
 	void Linear<T>::set_layer(const vector<int>& input_shape)
@@ -71,7 +73,10 @@ namespace simple_nn
 #elif TRUNC_APPROACH == 3
             trunc_exact_opt_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),all_positive);
 #endif
+    if(truncate)
         delayed = true;
+    else
+        delayed = false;
 #endif
 
 #if TRUNC_APPROACH > 0
@@ -83,12 +88,14 @@ namespace simple_nn
             const T* W = this->W.data();
             const T* A = prev_out.data() + n * prev_out.cols(); 
             T* C = this->output.data() + n * this->output.cols();
-            prepare_Matrix_Vector_Product(W, A, C, this->W.rows(), this->W.cols());
+            prepare_Matrix_Vector_Product(W, A, C, this->W.rows(), this->W.cols(),truncate);
         }
 
             T::communicate();
             auto C = this->output.data();
-            complete_GEMM(C, this->output.size());
+            complete_GEMM(C, this->output.size(),truncate);
+        if(truncate)
+        {
             #if TRUNC_DELAYED == 0 && (TRUNC_APPROACH == 1 || TRUNC_APPROACH == 4)
                 trunc_2k_in_place(this->output.data(), this->output.size(),false);
             #elif TRUNC_DELAYED == 0 && TRUNC_APPROACH == 2
@@ -96,11 +103,17 @@ namespace simple_nn
             #elif TRUNC_DELAYED == 0 && TRUNC_APPROACH == 3
                 trunc_exact_opt_in_place(this->output.data(), this->output.size());
             #endif
+        }
           
             auto B = b.data();
-            for (int n = 0; n < batch; n++) 
-                for(int i = 0; i < this->output.cols(); ++i)
-                    add_bias(C[n * this->output.cols() + i], B[i]);
+            if(truncate)
+                for (int n = 0; n < batch; n++) 
+                    for(int i = 0; i < this->output.cols(); ++i)
+                        add_bias(C[n * this->output.cols() + i], B[i]);
+            else
+                for (int n = 0; n < batch; n++) 
+                    for(int i = 0; i < this->output.cols(); ++i)
+                        add_bias_without_trunc(C[n * this->output.cols() + i], B[i]);
 
 }
 	

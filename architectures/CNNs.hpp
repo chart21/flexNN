@@ -159,7 +159,7 @@ class LeNet : public SimpleNN<T>
         this->add(new Flatten<T>());
         this->add(new Linear<T>(400,120));
         this->add(new ReLU<T>());
-        this->add(new Linear<T>(120,84));
+        this->add(new Linear<T>(120,84,"kaiming_uniform",false)); // init_weight -> kaiming_uniform, truncate -> false
         this->add(new ReLU<T>());
         this->add(new Linear<T>(84,num_classes));
     }
