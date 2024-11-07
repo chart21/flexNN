@@ -33,13 +33,13 @@ namespace simple_nn
 	};
 
     template<typename T>
-	Linear<T>::Linear(int in_features, int out_features, string option) :
+	Linear<T>::Linear(int in_features, int out_features, string option, bool truncate):
 		Layer<T>(LayerType::LINEAR),
 		batch(0),
 		in_feat(in_features),
 		out_feat(out_features),
 		option(option), 
-        bool truncate,{}
+        truncate(truncate){}
 
     template<typename T>
 	void Linear<T>::set_layer(const vector<int>& input_shape)

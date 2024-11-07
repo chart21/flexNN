@@ -192,12 +192,12 @@ if(use_bias)
 		for (int n = 0; n < batch; n++)
             for(int i = 0; i < oc; ++i)
                 for(int j = 0; j < ohw; ++j)
-                    add_bias(C[n*oc*ohw + i*ohw + j], B[i],truncate);
+                    add_bias(C[n*oc*ohw + i*ohw + j], B[i]);
     else
 		for (int n = 0; n < batch; n++)
             for(int i = 0; i < oc; ++i)
                 for(int j = 0; j < ohw; ++j)
-                    add_bias_without_trunc(C[n*oc*ohw + i*ohw + j], B[i],truncate);
+                    add_bias_without_trunc(C[n*oc*ohw + i*ohw + j], B[i]);
 }            
             
             
