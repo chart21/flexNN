@@ -4,7 +4,7 @@
 // === PYTORCH Equivalent, CPP Version below ===
 
 /*
-template<typename T> 
+template<typename T>
  class VGG : SimpleNN<T>
 
 
@@ -64,106 +64,101 @@ if classes == 10:
   )
 */
 
-
 using namespace simple_nn;
 
 template <typename T>
 class VGG : public SimpleNN<T>
 {
-    public:
+  public:
     VGG(int num_classes)
     {
-    this->add(new Conv2d<T>(3,64,3,1,1));
-    this->add(new ReLU<T>());
-    this->add(new Conv2d<T>(64,64,3,1,1));
-    this->add(new ReLU<T>());
-    this->add(new AvgPool2d<T>(2,2));
-    this->add(new Conv2d<T>(64,128,3,1,1));
-    this->add(new ReLU<T>());
-    this->add(new Conv2d<T>(128,128,3,1,1));
-    this->add(new ReLU<T>());
-    this->add(new AvgPool2d<T>(2,2));
-    this->add(new Conv2d<T>(128,256,3,1,1));
-    this->add(new ReLU<T>());
-    this->add(new Conv2d<T>(256,256,3,1,1));
-    this->add(new ReLU<T>());
-    this->add(new Conv2d<T>(256,256,3,1,1));
-    this->add(new ReLU<T>());
-    this->add(new AvgPool2d<T>(2,2));
-    this->add(new Conv2d<T>(256,512,3,1,1));
-    this->add(new ReLU<T>());
-    this->add(new Conv2d<T>(512,512,3,1,1));
-    this->add(new ReLU<T>());
-    this->add(new Conv2d<T>(512,512,3,1,1));
-    this->add(new ReLU<T>());
-    this->add(new AvgPool2d<T>(2,2));
-    this->add(new Conv2d<T>(512,512,3,1,1));
-    this->add(new ReLU<T>());
-    this->add(new Conv2d<T>(512,512,3,1,1));
-    this->add(new ReLU<T>());
-    this->add(new Conv2d<T>(512,512,3,1,1));
-    this->add(new ReLU<T>());
-    this->add(new AvgPool2d<T>(2,2));
+        this->add(new Conv2d<T>(3, 64, 3, 1, 1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(64, 64, 3, 1, 1));
+        this->add(new ReLU<T>());
+        this->add(new AvgPool2d<T>(2, 2));
+        this->add(new Conv2d<T>(64, 128, 3, 1, 1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(128, 128, 3, 1, 1));
+        this->add(new ReLU<T>());
+        this->add(new AvgPool2d<T>(2, 2));
+        this->add(new Conv2d<T>(128, 256, 3, 1, 1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(256, 256, 3, 1, 1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(256, 256, 3, 1, 1));
+        this->add(new ReLU<T>());
+        this->add(new AvgPool2d<T>(2, 2));
+        this->add(new Conv2d<T>(256, 512, 3, 1, 1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(512, 512, 3, 1, 1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(512, 512, 3, 1, 1));
+        this->add(new ReLU<T>());
+        this->add(new AvgPool2d<T>(2, 2));
+        this->add(new Conv2d<T>(512, 512, 3, 1, 1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(512, 512, 3, 1, 1));
+        this->add(new ReLU<T>());
+        this->add(new Conv2d<T>(512, 512, 3, 1, 1));
+        this->add(new ReLU<T>());
+        this->add(new AvgPool2d<T>(2, 2));
 
-    if(num_classes == 10)
-    {
-        this->add(new Flatten<T>());
-        this->add(new Linear<T>(512,256));
-        this->add(new ReLU<T>());
-        this->add(new Linear<T>(256,256));
-        this->add(new ReLU<T>());
-        this->add(new Linear<T>(256,10));
+        if (num_classes == 10)
+        {
+            this->add(new Flatten<T>());
+            this->add(new Linear<T>(512, 256));
+            this->add(new ReLU<T>());
+            this->add(new Linear<T>(256, 256));
+            this->add(new ReLU<T>());
+            this->add(new Linear<T>(256, 10));
+        }
+        else if (num_classes == 200)
+        {
+            this->add(new AvgPool2d<T>(2, 2));
+            this->add(new Flatten<T>());
+            this->add(new Linear<T>(512, 512));
+            this->add(new ReLU<T>());
+            this->add(new Linear<T>(512, 200));
+        }
+        else if (num_classes == 1000)
+        {
+            this->add(new AvgPool2d<T>(2, 2));
+            this->add(new Flatten<T>());
+            this->add(new Linear<T>(4608, 4096));
+            this->add(new ReLU<T>());
+            this->add(new Linear<T>(4096, 4096));
+            this->add(new ReLU<T>());
+            this->add(new Linear<T>(4096, 1000));
+        }
+        else
+        {
+            std::cout << "Error: num_classes must be 10, 200, or 1000" << std::endl;
+            exit(1);
+        }
     }
-    else if(num_classes == 200)
-    {
-        this->add(new AvgPool2d<T>(2,2));
-        this->add(new Flatten<T>());
-        this->add(new Linear<T>(512,512));
-        this->add(new ReLU<T>());
-        this->add(new Linear<T>(512,200));
-    }
-    else if(num_classes == 1000)
-    {
-        this->add(new AvgPool2d<T>(2,2));
-        this->add(new Flatten<T>());
-        this->add(new Linear<T>(4608,4096));
-        this->add(new ReLU<T>());
-        this->add(new Linear<T>(4096,4096));
-        this->add(new ReLU<T>());
-        this->add(new Linear<T>(4096,1000));
-    }
-    else
-    {
-        std::cout << "Error: num_classes must be 10, 200, or 1000" << std::endl;
-        exit(1);
-    }
-
-}
-
 };
 
-
-template <typename T>       
+template <typename T>
 class LeNet : public SimpleNN<T>
 {
-    public:
+  public:
     LeNet(int num_classes)
     {
-        this->add(new Conv2d<T>(1,6,5,1,2));
+        this->add(new Conv2d<T>(1, 6, 5, 1, 2));
         this->add(new ReLU<T>());
-        this->add(new AvgPool2d<T>(2,2));
-        this->add(new Conv2d<T>(6,16,5,1,0));
+        this->add(new AvgPool2d<T>(2, 2));
+        this->add(new Conv2d<T>(6, 16, 5, 1, 0));
         this->add(new ReLU<T>());
-        this->add(new AvgPool2d<T>(2,2));
+        this->add(new AvgPool2d<T>(2, 2));
         this->add(new Flatten<T>());
-        this->add(new Linear<T>(400,120));
+        this->add(new Linear<T>(400, 120));
         this->add(new ReLU<T>());
-        this->add(new Linear<T>(120,84));
+        this->add(new Linear<T>(120, 84));
         this->add(new ReLU<T>());
-        this->add(new Linear<T>(84,num_classes));
+        this->add(new Linear<T>(84, num_classes));
     }
 };
-
 
 // === PYTORCH Equivalent, CPP Version below ===
 
@@ -219,49 +214,49 @@ class LeNet : public SimpleNN<T>
 template <typename T>
 class AlexNet_CryptGpu : public SimpleNN<T>
 {
-    public:
+  public:
     AlexNet_CryptGpu(int num_classes)
     {
-        this->add(new Conv2d<T>(3,96,11,4,9));
+        this->add(new Conv2d<T>(3, 96, 11, 4, 9));
         this->add(new ReLU<T>());
-        this->add(new AvgPool2d<T>(3,2));
-        this->add(new Conv2d<T>(96,256,5,1,1));
+        this->add(new AvgPool2d<T>(3, 2));
+        this->add(new Conv2d<T>(96, 256, 5, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new AvgPool2d<T>(2,1));
-        this->add(new Conv2d<T>(256,384,3,1,1));
+        this->add(new AvgPool2d<T>(2, 1));
+        this->add(new Conv2d<T>(256, 384, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(384,384,3,1,1));
+        this->add(new Conv2d<T>(384, 384, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(384,256,3,1,1));
+        this->add(new Conv2d<T>(384, 256, 3, 1, 1));
         this->add(new ReLU<T>());
-        if(num_classes == 10)
+        if (num_classes == 10)
         {
             this->add(new Flatten<T>());
-            this->add(new Linear<T>(256,256));
+            this->add(new Linear<T>(256, 256));
             this->add(new ReLU<T>());
-            this->add(new Linear<T>(256,256));
+            this->add(new Linear<T>(256, 256));
             this->add(new ReLU<T>());
-            this->add(new Linear<T>(256,10));
+            this->add(new Linear<T>(256, 10));
         }
-        else if(num_classes == 200)
+        else if (num_classes == 200)
         {
-            this->add(new AvgPool2d<T>(2,2));
+            this->add(new AvgPool2d<T>(2, 2));
             this->add(new Flatten<T>());
-            this->add(new Linear<T>(1024,1024));
+            this->add(new Linear<T>(1024, 1024));
             this->add(new ReLU<T>());
-            this->add(new Linear<T>(1024,1024));
+            this->add(new Linear<T>(1024, 1024));
             this->add(new ReLU<T>());
-            this->add(new Linear<T>(1024,200));
+            this->add(new Linear<T>(1024, 200));
         }
-        else if(num_classes == 1000)
+        else if (num_classes == 1000)
         {
-            this->add(new AvgPool2d<T>(4,4));
+            this->add(new AvgPool2d<T>(4, 4));
             this->add(new Flatten<T>());
-            this->add(new Linear<T>(9216,4096));
+            this->add(new Linear<T>(9216, 4096));
             this->add(new ReLU<T>());
-            this->add(new Linear<T>(4096,4096));
+            this->add(new Linear<T>(4096, 4096));
             this->add(new ReLU<T>());
-            this->add(new Linear<T>(4096,1000));
+            this->add(new Linear<T>(4096, 1000));
         }
         else
         {
@@ -271,9 +266,7 @@ class AlexNet_CryptGpu : public SimpleNN<T>
     }
 };
 
-
 // === PYTORCH Equivalent, CPP Version below ===
-
 
 /* template <typename T> */
 /* class AlexNet : public SimpleNN<T> */
@@ -324,7 +317,7 @@ class AlexNet_32(nn.Module):
         self.conv5 = nn.Conv2d(192, 128, kernel_size=3, stride=1, padding=1)
         self.relu5 = nn.ReLU()
         self.pool3 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        
+
         self.flatten = nn.Flatten()
         self.fc1 = nn.Linear(128 * 4 * 4, 2048)  # Adjust the size according to your input image size
         self.relu6 = nn.ReLU()
@@ -352,34 +345,33 @@ class AlexNet_32(nn.Module):
 template <typename T>
 class AlexNet_32 : public SimpleNN<T>
 {
-    public:
+  public:
     AlexNet_32(int num_classes)
     {
-        this->add(new Conv2d<T>(3,56,3,1,1));
+        this->add(new Conv2d<T>(3, 56, 3, 1, 1));
         this->add(new ReLU<T>());
         /* this->add(new MaxPool2d<T>(3,2,1)); */
-        this->add(new AvgPool2d<T>(3,2,1));
-        this->add(new Conv2d<T>(56,128,5,1,2));
+        this->add(new AvgPool2d<T>(3, 2, 1));
+        this->add(new Conv2d<T>(56, 128, 5, 1, 2));
         this->add(new ReLU<T>());
         /* this->add(new MaxPool2d<T>(3,2,1)); */
-        this->add(new AvgPool2d<T>(3,2,1));
-        this->add(new Conv2d<T>(128,192,3,1,1));
+        this->add(new AvgPool2d<T>(3, 2, 1));
+        this->add(new Conv2d<T>(128, 192, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(192,192,3,1,1));
+        this->add(new Conv2d<T>(192, 192, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(192,128,3,1,1));
+        this->add(new Conv2d<T>(192, 128, 3, 1, 1));
         this->add(new ReLU<T>());
         /* this->add(new MaxPool2d<T>(3,2,1)); */
-        this->add(new AvgPool2d<T>(3,2,1));
+        this->add(new AvgPool2d<T>(3, 2, 1));
         this->add(new Flatten<T>());
-        this->add(new Linear<T>(2048,2048));
+        this->add(new Linear<T>(2048, 2048));
         this->add(new ReLU<T>());
-        this->add(new Linear<T>(2048,2048));
+        this->add(new Linear<T>(2048, 2048));
         this->add(new ReLU<T>());
-        this->add(new Linear<T>(2048,num_classes));
+        this->add(new Linear<T>(2048, num_classes));
     }
 };
-
 
 /* class AlexNet_PyTorch(nn.Module): */
 /*     def __init__(self, num_classes: int = 1000, dropout: float = 0.5) -> None: */
@@ -421,77 +413,74 @@ class AlexNet_32 : public SimpleNN<T>
 template <typename T>
 class AlexNet_PyTorch : public SimpleNN<T>
 {
-    public:
+  public:
     AlexNet_PyTorch(int num_classes)
     {
-        this->add(new Conv2d<T>(3,64,11,4,2));
+        this->add(new Conv2d<T>(3, 64, 11, 4, 2));
         this->add(new ReLU<T>());
-        this->add(new MaxPool2d<T>(3,2));
-        this->add(new Conv2d<T>(64,192,5,1,2));
+        this->add(new MaxPool2d<T>(3, 2));
+        this->add(new Conv2d<T>(64, 192, 5, 1, 2));
         this->add(new ReLU<T>());
-        this->add(new MaxPool2d<T>(3,2));
-        this->add(new Conv2d<T>(192,384,3,1,1));
+        this->add(new MaxPool2d<T>(3, 2));
+        this->add(new Conv2d<T>(192, 384, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(384,256,3,1,1));
+        this->add(new Conv2d<T>(384, 256, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(256,256,3,1,1));
+        this->add(new Conv2d<T>(256, 256, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new MaxPool2d<T>(3,2));
-        this->add(new AdaptiveAvgPool2d<T>(6,6));
+        this->add(new MaxPool2d<T>(3, 2));
+        this->add(new AdaptiveAvgPool2d<T>(6, 6));
         this->add(new Flatten<T>());
-        this->add(new Linear<T>(9216,4096));
+        this->add(new Linear<T>(9216, 4096));
         this->add(new ReLU<T>());
-        this->add(new Linear<T>(4096,4096));
+        this->add(new Linear<T>(4096, 4096));
         this->add(new ReLU<T>());
-        this->add(new Linear<T>(4096,num_classes));
+        this->add(new Linear<T>(4096, num_classes));
     }
 };
 
 template <typename T>
 class VGG16_PyTorch : public SimpleNN<T>
 {
-    public:
+  public:
     VGG16_PyTorch(int num_classes)
     {
-        this->add(new Conv2d<T>(3,64,3,1,1));
+        this->add(new Conv2d<T>(3, 64, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(64,64,3,1,1));
+        this->add(new Conv2d<T>(64, 64, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new MaxPool2d<T>(2,2));
-        this->add(new Conv2d<T>(64,128,3,1,1));
+        this->add(new MaxPool2d<T>(2, 2));
+        this->add(new Conv2d<T>(64, 128, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(128,128,3,1,1));
+        this->add(new Conv2d<T>(128, 128, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new MaxPool2d<T>(2,2));
-        this->add(new Conv2d<T>(128,256,3,1,1));
+        this->add(new MaxPool2d<T>(2, 2));
+        this->add(new Conv2d<T>(128, 256, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(256,256,3,1,1));
+        this->add(new Conv2d<T>(256, 256, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(256,256,3,1,1));
+        this->add(new Conv2d<T>(256, 256, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new MaxPool2d<T>(2,2));
-        this->add(new Conv2d<T>(256,512,3,1,1));
+        this->add(new MaxPool2d<T>(2, 2));
+        this->add(new Conv2d<T>(256, 512, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(512,512,3,1,1));
+        this->add(new Conv2d<T>(512, 512, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(512,512,3,1,1));
+        this->add(new Conv2d<T>(512, 512, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new MaxPool2d<T>(2,2));
-        this->add(new Conv2d<T>(512,512,3,1,1));
+        this->add(new MaxPool2d<T>(2, 2));
+        this->add(new Conv2d<T>(512, 512, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(512,512,3,1,1));
+        this->add(new Conv2d<T>(512, 512, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new Conv2d<T>(512,512,3,1,1));
+        this->add(new Conv2d<T>(512, 512, 3, 1, 1));
         this->add(new ReLU<T>());
-        this->add(new MaxPool2d<T>(2,2));
-        this->add(new AdaptiveAvgPool2d<T>(7,7));
-        this->add(new Linear<T>(25088,4096));
+        this->add(new MaxPool2d<T>(2, 2));
+        this->add(new AdaptiveAvgPool2d<T>(7, 7));
+        this->add(new Linear<T>(25088, 4096));
         this->add(new ReLU<T>());
-        this->add(new Linear<T>(4096,4096));
+        this->add(new Linear<T>(4096, 4096));
         this->add(new ReLU<T>());
-        this->add(new Linear<T>(4096,num_classes));
+        this->add(new Linear<T>(4096, num_classes));
     }
-
 };
-
-

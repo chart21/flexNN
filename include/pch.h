@@ -1,10 +1,10 @@
 #pragma once
-#include <algorithm>
+#include <eigen3/Eigen/Dense>
 #include <assert.h>
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
-#include <eigen3/Eigen/Dense>
 #include <filesystem>
 #include <fstream>
 #include <functional>

@@ -3,174 +3,202 @@
 
 namespace simple_nn
 {
-    template<typename T>
-	class AvgPool2d : public Layer<T>
-	{
-	private:
-		int batch;
-		int ch;
-		int ih;
-		int iw;
-		int ihw;
-		int oh;
-		int ow;
-		int ohw;
-		int kh;
-		int kw;
-		int stride;
-        int pad;
-		// MatX<T> im_col;
-	public:
-		AvgPool2d(int kernel_size, int stride, int pad = 0);
-		void set_layer(const vector<int>& input_shape) override;
-		void forward(const MatX<T>& prev_out, bool is_training) override;
-		void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override;
-		void zero_grad() override;
-		vector<int> output_shape() override;
-	};
+template <typename T>
+class AvgPool2d : public Layer<T>
+{
+  private:
+    int batch;
+    int ch;
+    int ih;
+    int iw;
+    int ihw;
+    int oh;
+    int ow;
+    int ohw;
+    int kh;
+    int kw;
+    int stride;
+    int pad;
+    // MatX<T> im_col;
+  public:
+    AvgPool2d(int kernel_size, int stride, int pad = 0);
+    void set_layer(const vector<int>& input_shape) override;
+    void forward(const MatX<T>& prev_out, bool is_training) override;
+    void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override;
+    void zero_grad() override;
+    vector<int> output_shape() override;
+};
 
-    template<typename T>
-	AvgPool2d<T>::AvgPool2d(int kernel_size, int stride, int pad) :
-		Layer<T>(LayerType::AVGPOOL2D),
-		batch(0),
-		ch(0),
-		ih(0),
-		iw(0),
-		ihw(0),
-		oh(0),
-		ow(0),
-		ohw(0),
-		kh(kernel_size),
-		kw(kernel_size),
-		stride(stride),
-        pad(pad){}
+template <typename T>
+AvgPool2d<T>::AvgPool2d(int kernel_size, int stride, int pad)
+    : Layer<T>(LayerType::AVGPOOL2D),
+      batch(0),
+      ch(0),
+      ih(0),
+      iw(0),
+      ihw(0),
+      oh(0),
+      ow(0),
+      ohw(0),
+      kh(kernel_size),
+      kw(kernel_size),
+      stride(stride),
+      pad(pad)
+{
+}
 
-    template<typename T>
-	void AvgPool2d<T>::set_layer(const vector<int>& input_shape)
-	{
-		batch = input_shape[0];
-		ch = input_shape[1];
-		ih = input_shape[2];
-		iw = input_shape[3];
-		ihw = ih * iw;
-		oh = calc_outsize(ih, kh, stride, pad);
-		ow = calc_outsize(iw, kw, stride, pad);
-		ohw = oh * ow;
+template <typename T>
+void AvgPool2d<T>::set_layer(const vector<int>& input_shape)
+{
+    batch = input_shape[0];
+    ch = input_shape[1];
+    ih = input_shape[2];
+    iw = input_shape[3];
+    ihw = ih * iw;
+    oh = calc_outsize(ih, kh, stride, pad);
+    ow = calc_outsize(iw, kw, stride, pad);
+    ohw = oh * ow;
 
-		this->output.resize(batch * ch, ohw);
-		this->delta.resize(batch * ch, ohw);
-		// im_col.resize(kh * kw, ohw);
-	}
+    this->output.resize(batch * ch, ohw);
+    this->delta.resize(batch * ch, ohw);
+    // im_col.resize(kh * kw, ohw);
+}
 
-    template<typename T>
-	void AvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
-	{
+template <typename T>
+void AvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
+{
 #if TRUNC_DELAYED == 1
-        if(delayed)
+    if (delayed)
 #if TRUNC_APPROACH == 0
-            trunc_pr_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+        trunc_pr_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
 #elif TRUNC_APPROACH == 1 || TRUNC_APPROACH == 4
-            trunc_2k_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),all_positive);
+        trunc_2k_in_place(const_cast<T*>(prev_out.data()), prev_out.size(), all_positive);
 #elif TRUNC_APPROACH == 2
-            trunc_exact_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
+        trunc_exact_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
 #elif TRUNC_APPROACH == 3
-            trunc_exact_opt_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),all_positive);
+        trunc_exact_opt_in_place(const_cast<T*>(prev_out.data()), prev_out.size(), all_positive);
 #endif
-        delayed = false;
+    delayed = false;
 #endif
-        T::communicate();
-        this->output.setZero();
-		T* out = this->output.data();
-		const T* pout = prev_out.data();
-		const int denominator = kh * kw;
-        int fractional = FRACTIONAL;
-        #if AVG_OPT == 1 && TRUNC_APPROACH != 3 // Currently this optimization is not supported for trunc_approach 3
-        FLOATTYPE reciprocal = 1.0d / denominator;
+    T::communicate();
+    this->output.setZero();
+    T* out = this->output.data();
+    const T* pout = prev_out.data();
+    const int denominator = kh * kw;
+    int fractional = FRACTIONAL;
+#if AVG_OPT == 1 && TRUNC_APPROACH != 3  // Currently this optimization is not supported for trunc_approach 3
+    FLOATTYPE reciprocal = 1.0d / denominator;
 #if TRUNC_THEN_MULT == 1
-        reciprocal = reciprocal / (1 << FRACTIONAL);
+    reciprocal = reciprocal / (1 << FRACTIONAL);
 #endif
-        FLOATTYPE epsilon = 0.0001f;
-        FLOATTYPE last_diff = reciprocal;
-        FLOATTYPE threshold = FLOATTYPE(AVG_OPT_THRESHOLD)/100;
-        for(int i = FRACTIONAL; i > 0; i--){
-            UINT_TYPE current_guess = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/FLOATTYPE(denominator),i);
-            FLOATTYPE back_to_float = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(current_guess, i);
-            FLOATTYPE current_delta = std::abs(reciprocal - fixedToFloat<FLOATTYPE,INT_TYPE,UINT_TYPE,FRACTIONAL>(current_guess, i));
-            if(last_diff == 0)
-            {
-                if(current_delta == 0)
-                {
-                fractional = i;
-                last_diff = current_delta;
-                }
-            }
-            else if(current_delta/(last_diff) - 1 <= threshold)
+    FLOATTYPE epsilon = 0.0001f;
+    FLOATTYPE last_diff = reciprocal;
+    FLOATTYPE threshold = FLOATTYPE(AVG_OPT_THRESHOLD) / 100;
+    for (int i = FRACTIONAL; i > 0; i--)
+    {
+        UINT_TYPE current_guess = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(
+            1 / FLOATTYPE(denominator), i);
+        FLOATTYPE back_to_float =
+            FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(current_guess, i);
+        FLOATTYPE current_delta =
+            std::abs(reciprocal - fixedToFloat<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>(current_guess, i));
+        if (last_diff == 0)
+        {
+            if (current_delta == 0)
             {
                 fractional = i;
                 last_diff = current_delta;
-            }
-            else{
-                break;
             }
         }
-        #endif
+        else if (current_delta / (last_diff)-1 <= threshold)
+        {
+            fractional = i;
+            last_diff = current_delta;
+        }
+        else
+        {
+            break;
+        }
+    }
+#endif
 
-		for (int n = 0; n < batch; n++) {
-			for (int c = 0; c < ch; c++) {
-				for (int i = 0; i < oh; i++) {
-					for (int j = 0; j < ow; j++) {
-						int out_idx = j + ow * (i + oh * (c + ch * n));
-						for (int y = 0; y < kh; y++) {
-							for (int x = 0; x < kw; x++) {
-								int ii = i * stride + y - pad;
-								int jj = j * stride + x - pad;
-								int in_idx = jj + iw * (ii + ih * (c + ch * n));
-								if (ii >= 0 && ii < ih && jj >= 0 && jj < iw) {
-									out[out_idx] += pout[in_idx];
-								}
-							}
-						}
-                        prepare_prob_div(out[out_idx], denominator, fractional);
-					}
-				}
-			}
-		}
-        T::communicate();
-        complete_prob_div(out, this->output.size(), denominator, fractional);
-	}
-
-    template<typename T>
-	void AvgPool2d<T>::backward(const MatX<T>& prev_out, MatX<T>& prev_delta)
-	{
-		T* pd = prev_delta.data();
-		const T* d = this->delta.data();
-		FLOATTYPE denominator = kh * kw;
-		for (int n = 0; n < batch; n++) {
-			for (int c = 0; c < ch; c++) {
-				for (int i = 0; i < oh; i++) {
-					for (int j = 0; j < ow; j++) {
-						int cur_idx = j + ow * (i + oh * (c + ch * n));
-						for (int y = 0; y < kh; y++) {
-							for (int x = 0; x < kw; x++) {
-								int ii = y + stride * i - pad;
-								int jj = x + stride * j - pad;
-								int prev_idx = jj + iw * (ii + ih * (c + ch * n));
-								if (ii >= 0 && ii < ih && jj >= 0 && jj < iw) {
-                                    /* pd[prev_idx] += d[cur_idx].mult_public(FloatFixedConverter<float, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator)); //TODO: extend with different trunc methods */
-							        	
-                                }
-							}
-						}
-					}
-				}
-			}
-		}
-        /* trunc_2k_in_place(pd, prev_delta.size()); */
-	}
-
-    template<typename T>
-	void AvgPool2d<T>::zero_grad() { this->delta.setZero(); }
-
-    template<typename T>
-	vector<int> AvgPool2d<T>::output_shape() { return { batch, ch, oh, ow }; }
+    for (int n = 0; n < batch; n++)
+    {
+        for (int c = 0; c < ch; c++)
+        {
+            for (int i = 0; i < oh; i++)
+            {
+                for (int j = 0; j < ow; j++)
+                {
+                    int out_idx = j + ow * (i + oh * (c + ch * n));
+                    for (int y = 0; y < kh; y++)
+                    {
+                        for (int x = 0; x < kw; x++)
+                        {
+                            int ii = i * stride + y - pad;
+                            int jj = j * stride + x - pad;
+                            int in_idx = jj + iw * (ii + ih * (c + ch * n));
+                            if (ii >= 0 && ii < ih && jj >= 0 && jj < iw)
+                            {
+                                out[out_idx] += pout[in_idx];
+                            }
+                        }
+                    }
+                    prepare_prob_div(out[out_idx], denominator, fractional);
+                }
+            }
+        }
+    }
+    T::communicate();
+    complete_prob_div(out, this->output.size(), denominator, fractional);
 }
+
+template <typename T>
+void AvgPool2d<T>::backward(const MatX<T>& prev_out, MatX<T>& prev_delta)
+{
+    T* pd = prev_delta.data();
+    const T* d = this->delta.data();
+    FLOATTYPE denominator = kh * kw;
+    for (int n = 0; n < batch; n++)
+    {
+        for (int c = 0; c < ch; c++)
+        {
+            for (int i = 0; i < oh; i++)
+            {
+                for (int j = 0; j < ow; j++)
+                {
+                    int cur_idx = j + ow * (i + oh * (c + ch * n));
+                    for (int y = 0; y < kh; y++)
+                    {
+                        for (int x = 0; x < kw; x++)
+                        {
+                            int ii = y + stride * i - pad;
+                            int jj = x + stride * j - pad;
+                            int prev_idx = jj + iw * (ii + ih * (c + ch * n));
+                            if (ii >= 0 && ii < ih && jj >= 0 && jj < iw)
+                            {
+                                /* pd[prev_idx] += d[cur_idx].mult_public(FloatFixedConverter<float, INT_TYPE,
+                                 * UINT_TYPE, FRACTIONAL>::float_to_ufixed(1/denominator)); //TODO: extend with
+                                 * different trunc methods */
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    /* trunc_2k_in_place(pd, prev_delta.size()); */
+}
+
+template <typename T>
+void AvgPool2d<T>::zero_grad()
+{
+    this->delta.setZero();
+}
+
+template <typename T>
+vector<int> AvgPool2d<T>::output_shape()
+{
+    return {batch, ch, oh, ow};
+}
+}  // namespace simple_nn
