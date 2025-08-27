@@ -252,6 +252,11 @@ class ResNet : public SimpleNN<T>
             out = this->net[l]->output;
             /* stop_timer(toString(this->net[l]->type)); */
             stop_layer_stats(l);
+            #if IS_TRAINING == 0
+            if (l > 0)
+                delete this->net[l - 1];
+            #endif
+
         }
     }
 
