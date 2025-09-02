@@ -175,7 +175,11 @@ void BatchNorm2d<T>::normalize_and_shift(const MatX<T>& prev_out, bool is_traini
             for (int j = 0; j < hw; j++)
             {
 #if PUBLIC_WEIGHTS == 0
+#if PROTOCOL == 4 && AB2_TRIPLES == 1 
+                this->output(i, j) = (prev_out(i, j) - m).prepare_dot_a_known(s);
+#else
                 this->output(i, j) = (prev_out(i, j) - m).prepare_dot(s);
+#endif
 #if TRUNC_APPROACH > 0 || TRUNC_DELAYED == 1
                 this->output(i, j).mask_and_send_dot_without_trunc();
 #else
