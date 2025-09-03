@@ -131,6 +131,9 @@ namespace simple_nn
     all_positive = false;
 #endif
 
+#if PROTOCOL == 4 && CONV_TRIPLES == 1
+        T::SetupConv2dTriples(prev_out.data(), kernel.data(), this->output.data(), batch, ih , iw, ic, oc, kh, kw, pad, stride);
+#endif
 
 
 #if USE_CUDA_GEMM == 2 || USE_CUDA_GEMM == 4 // Outsource whole convolution to GPU
