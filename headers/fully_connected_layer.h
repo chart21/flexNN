@@ -61,7 +61,7 @@ namespace simple_nn
 	void Linear<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
 #if PROTOCOL == 4 && FC_TRIPLES == 1
-        T::SetupFullyConnectedTriples(prev_out.data(), W.data(), this->output.data(), batch, in_features, out_features);
+        T::SetupFullyConnectedTriples(prev_out.data(), W.data(), this->output.data(), batch, in_feat, out_feat);
 #endif
 
 #if TRUNC_DELAYED == 1
