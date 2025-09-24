@@ -102,7 +102,7 @@ namespace simple_nn
 			move_mu = move_mu * momentum + mu * (1 - momentum);
 			move_var = move_var * momentum + var * (1 - momentum);
 #else
-#if PROTOCOL == 4 && BN2D_TRIPLES == 1
+#if PROTOCOL == 4 && BN2D_TRIPLES == 1 && PUBLIC_WEIGHTS == 0
         T::SetupBatchNorm2DTriples(prev_out.data(), move_var.data(), this->output.data(), batch, ch, h, w);
 #endif
 
