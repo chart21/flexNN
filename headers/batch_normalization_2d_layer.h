@@ -176,16 +176,29 @@ namespace simple_nn
                 auto s = V[c];
 				for (int j = 0; j < hw; j++) {
 #if PUBLIC_WEIGHTS == 0
+#if PROTOCOL == 4 && BN2D_TRIPLES == 1 
+                this->output(i, j) = (prev_out(i, j) - m).prepare_dot_ex_lxly_a_known(s);
+#else
+
 #if PROTOCOL == 4 && AB2_TRIPLES == 1 
                 this->output(i, j) = (prev_out(i, j) - m).prepare_dot_a_known(s);
 #else
                 this->output(i, j) = (prev_out(i, j) - m).prepare_dot(s);
 #endif					
+#endif
                 
 #if TRUNC_APPROACH > 0 || TRUNC_DELAYED == 1
+#if PROTOCOL == 4 && BN2D_TRIPLES == 1 
+                    this->output(i, j).mask_and_send_dot_without_trunc_with_triple();
+#else
                     this->output(i, j).mask_and_send_dot_without_trunc();
+#endif
+#else
+#if PROTOCOL == 4 && BN2D_TRIPLES == 1 
+                    this->output(i, j).mask_and_send_dot_with_triple();
 #else
                     this->output(i, j).mask_and_send_dot();
+#endif
 #endif
 #else
 #if TRUNC_APPROACH > 0 || TRUNC_DELAYED == 1
