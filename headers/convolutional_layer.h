@@ -132,7 +132,7 @@ namespace simple_nn
 #endif
 
 #if PROTOCOL == 4 && CONV_TRIPLES == 1 && PUBLIC_WEIGHTS == 0
-        T::SetupConv2dTriples(prev_out.data(), kernel.data(), this->output.data(), batch, ih , iw, ic, oc, kh, kw, pad, stride);
+        T::SetupConv2dTriples(prev_out.data(), kernel.data(), this->output.data(), batch, ih , iw, ic, oc, kh, kw, pad, stride, oh, ow);
 #endif
 
 
