@@ -84,7 +84,11 @@ namespace simple_nn
         
         for (int n = 0; n < batch; n++) {
 
+#if PUBLIC_WEIGHTS == 1
+            DATATYPE* W = this->W.data();
+#else
             const T* W = this->W.data();
+#endif
             const T* A = prev_out.data() + n * prev_out.cols(); 
             T* C = this->output.data() + n * this->output.cols();
             prepare_Matrix_Vector_Product(W, A, C, this->W.rows(), this->W.cols());
