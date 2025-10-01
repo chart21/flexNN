@@ -177,13 +177,13 @@ namespace simple_nn
 				for (int j = 0; j < hw; j++) {
 #if PUBLIC_WEIGHTS == 0
 #if PROTOCOL == 4 && BN2D_TRIPLES == 1 
-                this->output(i, j) = (prev_out(i, j) - m).prepare_dot_ex_lxly_a_known(s);
+                this->output(i, j) = s.prepare_dot_ex_lxly_a_known(prev_out(i, j) - m);
 #else
 
 #if PROTOCOL == 4 && AB2_TRIPLES == 1 
-                this->output(i, j) = (prev_out(i, j) - m).prepare_dot_a_known(s);
+                this->output(i, j) = s.prepare_dot_a_known(prev_out(i, j) - m);
 #else
-                this->output(i, j) = (prev_out(i, j) - m).prepare_dot(s);
+                this->output(i, j) = s.prepare_dot_a_known(prev_out(i, j) - m);
 #endif					
 #endif
                 
