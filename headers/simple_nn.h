@@ -179,7 +179,7 @@ namespace simple_nn
         MatXf output_float(output.rows()*(BASE_DIV), output.cols()); // 32x10
         for (int i = 0; i < output.rows(); i++) {
             for (int j = 0; j < output.cols(); j++) {
-                alignas(sizeof(DATTYPE)) UINT_TYPE tmp[BASE_DIV];
+                alignas(sizeof(DATATYPE)) UINT_TYPE tmp[BASE_DIV];
                 output(i,j).complete_reveal_to_all(tmp);
                 for (int k = 0; k < BASE_DIV; k++) {
                     output_float(i*(BASE_DIV)+k,j) = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(tmp[k]);
