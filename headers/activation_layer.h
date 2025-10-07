@@ -174,11 +174,20 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 	class ReLU : public Activation<T>
 	{
 	public:
+#if FUSE_RELU_AVG == 1
+		ReLU(int denominator = 1) : Activation<T>(), denom(denominator) {}
+    private:
+        int denom;
+#else
 		ReLU() : Activation<T>() {}
+#endif
 
 		void forward(const MatX<T>& prev_out, bool is_training) override
 		{
             assert(this->output.size() == prev_out.size());
+#if FUSE_RELU_AVG == 1
+            curr_denom = denom;
+#endif
             RELU<m,k>(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data());
         }
 

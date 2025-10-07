@@ -150,10 +150,18 @@ class LeNet : public SimpleNN<T>
     LeNet(int num_classes)
     {
         this->add(new Conv2d<T>(1,6,5,1,2));
+#if FUSE_RELU_AVG == 1 && TRUNC_APPROACH == 0 && TRUNC_DELAYED == 0
+        this->add(new ReLU<T>(4));
+#else
         this->add(new ReLU<T>());
+#endif
         this->add(new AvgPool2d<T>(2,2));
         this->add(new Conv2d<T>(6,16,5,1,0));
+#if FUSE_RELU_AVG == 1 && TRUNC_APPROACH == 0 && TRUNC_DELAYED == 0
+        this->add(new ReLU<T>(4));
+#else
         this->add(new ReLU<T>());
+#endif
         this->add(new AvgPool2d<T>(2,2));
         this->add(new Flatten<T>());
         this->add(new Linear<T>(400,120));

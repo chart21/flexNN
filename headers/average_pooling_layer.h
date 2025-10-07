@@ -130,13 +130,17 @@ namespace simple_nn
 								}
 							}
 						}
+#if FUSE_RELU_AVG == 0
                         prepare_prob_div(out[out_idx], denominator, fractional);
+#endif
 					}
 				}
 			}
 		}
         T::communicate();
+#if FUSE_RELU_AVG == 0
         complete_prob_div(out, this->output.size(), denominator, fractional);
+#endif
 	}
 
     template<typename T>
