@@ -174,7 +174,7 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 	class ReLU : public Activation<T>
 	{
 	public:
-#if FUSE_RELU_AVG == 1
+#if FUSE_RELU_AVG == 1 || FUSE_RELU_MAX == 1
 		ReLU(int denominator = 1) : Activation<T>(), denom(denominator) {}
     private:
         int denom;
@@ -184,6 +184,13 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 
 		void forward(const MatX<T>& prev_out, bool is_training) override
 		{
+#if FUSE_RELU_MAX == 1
+            if(denom == -1)
+            {
+                std::copy(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data());
+                return; // skip ReLU if fused with MaxPool
+            }
+#endif
             assert(this->output.size() == prev_out.size());
 #if FUSE_RELU_AVG == 1
             curr_denom = denom;

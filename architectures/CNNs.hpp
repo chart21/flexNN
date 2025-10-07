@@ -172,6 +172,35 @@ class LeNet : public SimpleNN<T>
     }
 };
 
+template <typename T>       
+class LeNet_maxpool : public SimpleNN<T>
+{
+    public:
+    LeNet_maxpool(int num_classes)
+    {
+        this->add(new Conv2d<T>(1,6,5,1,2));
+#if FUSE_RELU_MAX == 1 && TRUNC_APPROACH == 0 && TRUNC_DELAYED == 0
+        this->add(new ReLU<T>(-1));
+#else
+        this->add(new ReLU<T>());
+#endif
+        this->add(new MaxPool2d<T>(2,2));
+        this->add(new Conv2d<T>(6,16,5,1,0));
+#if FUSE_RELU_MAX == 1 && TRUNC_APPROACH == 0 && TRUNC_DELAYED == 0
+        this->add(new ReLU<T>(-1));
+#else
+        this->add(new ReLU<T>());
+#endif
+        this->add(new MaxPool2d<T>(2,2));
+        this->add(new Flatten<T>());
+        this->add(new Linear<T>(400,120));
+        this->add(new ReLU<T>());
+        this->add(new Linear<T>(120,84));
+        this->add(new ReLU<T>());
+        this->add(new Linear<T>(84,num_classes));
+    }
+};
+
 
 // === PYTORCH Equivalent, CPP Version below ===
 

@@ -71,7 +71,11 @@ namespace simple_nn
 	{
 		T* out = this->output.data();
 		const T* pout = prev_out.data();
+#if FUSE_RELU_MAX == 1
+        auto max_candidates = new T[batch * ch * oh * ow * (kh * kw + 1)];
+#else
         auto max_candidates = new T[batch * ch * oh * ow * kh * kw];
+#endif
         int counter = 0;
 		for (int n = 0; n < batch; n++) {
 			for (int c = 0; c < ch; c++) {
@@ -86,15 +90,24 @@ namespace simple_nn
 								if (ii >= 0 && ii < ih && jj >= 0 && jj < iw)
 									val = pout[pout_idx];
                                 else if(pad > 0)
-                                    val = T(0); // 0 padding
+                                    val = T(0); // 0 padding, TODO: Can be used to skip additional candidate for ReLU fusion
                                 max_candidates[counter++] = val;
+#if FUSE_RELU_MAX == 1
+                                if(y == kh - 1 && x == kw - 1) {
+                                    max_candidates[counter++] = T(0); // for ReLU fusion
 							}
+#endif
 						}
 					}
 				}
 			}
 		}
+	}
+#if FUSE_RELU_MAX == 1
+    max_min_sint<m,k>(max_candidates, kh * kw + 1, out, batch * ch * oh * ow, true);
+#else
     max_min_sint<m,k>(max_candidates, kh * kw, out, batch * ch * oh * ow, true);
+#endif
     delete[] max_candidates;
 	}
 
