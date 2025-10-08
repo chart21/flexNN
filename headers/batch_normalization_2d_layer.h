@@ -94,6 +94,7 @@ namespace simple_nn
     template<typename T>
 	void BatchNorm2d<T>::forward(const MatX<T>& prev_out, bool is_training)
     {
+
 #if IS_TRAINING == 1
 			calc_batch_mu(prev_out);
 			calc_batch_var(prev_out);
@@ -102,6 +103,10 @@ namespace simple_nn
 			move_mu = move_mu * momentum + mu * (1 - momentum);
 			move_var = move_var * momentum + var * (1 - momentum);
 #else
+#if FUSE_CONV_BN_SIM == 1
+            std::copy(prev_out.data(), prev_out.data() + prev_out.size(), this->output.data());
+            return;
+#endif
 #if PROTOCOL == 4 && BN2D_TRIPLES == 1 && PUBLIC_WEIGHTS == 0
         T::SetupBatchNorm2DTriples(prev_out.data(), move_var.data(), this->output.data(), batch, ch, h, w);
 #endif
@@ -183,7 +188,7 @@ namespace simple_nn
 #if PROTOCOL == 4 && AB2_TRIPLES == 1 
                 this->output(i, j) = s.prepare_dot_a_known(prev_out(i, j) - m);
 #else
-                this->output(i, j) = s.prepare_dot_a_known(prev_out(i, j) - m);
+                this->output(i, j) = s.prepare_dot(prev_out(i, j) - m);
 #endif					
 #endif
                 
