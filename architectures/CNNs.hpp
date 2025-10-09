@@ -528,7 +528,6 @@ class VGG16_PyTorch : public SimpleNN<T>
         this->add(new ReLU<T>());
         this->add(new Linear<T>(4096,num_classes));
     }
-
 };
 
 

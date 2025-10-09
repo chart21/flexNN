@@ -128,11 +128,12 @@ using namespace simple_nn;
 template <typename T>
 class ResNet : public SimpleNN<T>
 {
-private:
+protected:
     int in_channels;
     vector<int> identity_layers;
     vector<string> identity_layers_type;
 public:
+    ResNet() {}
     ResNet(int residual_blocks[4], int image_channels, int num_classes, string option = "kaiming_uniform") {
         in_channels = 64;
         this->add(new Conv2d<T>(image_channels, 64, 7, 2, 3, false, option));
@@ -326,4 +327,309 @@ ResNet<T> ResNet152(int num_classes, string option = "kaiming_uniform", int imag
     int residual_blocks[4] = {3, 8, 36, 3};
     return ResNet<T>(residual_blocks, image_channels, num_classes, option);
 }
+
+
+
+template <typename T>
+class Cheetah_ResNet : public ResNet<T>
+{
+    private:
+        vector<int> increase_size;
+        vector<int> increased_sized;
+    public:
+    Cheetah_ResNet(int num_classes, string option = "kaiming_uniform", int image_channels = 3) 
+    {
+    // Initial convolution block
+    this->add(new Conv2d<T>(3, 64, 7, 2, 0)); // First conv: 3->64, 7x7, stride 2, VALID padding
+    this->add(new AvgPool2d<T>(3, 2, 1));     // Maxpool: 3x3, stride 2, VALID padding
+    this->add(new BatchNorm2d<T>());        // BatchNorm on 64 channels
+    this->add(new ReLU<T>());
+    this->add_identity_layer("Identity_Store");
+    this->add_identity_layer("Identity_OP_Start");
+
+    // First set of residual blocks (64->256)
+    this->add(new Conv2d<T>(64, 256, 1, 1, 0));  // Conv #2: 64->256, 1x1
+    this->add_identity_layer("Identity_OP_Finish");
+     
+    this->add(new Conv2d<T>(64, 64, 1, 1, 0));   // Conv #3: 64->64, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(64, 64, 3, 1, 1));   // Conv #4: 64->64, 3x3, SAME padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(64, 256, 1, 1, 0));  // Conv #5: 64->256, 1x1
+    this->add_identity_layer("Identity_ADD");
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+
+    // Second residual block
+    this->add(new Conv2d<T>(256, 64, 1, 1, 0));  // Conv #6: 256->64, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(64, 64, 3, 1, 1));   // Conv #7: 64->64, 3x3, SAME padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(64, 256, 1, 1, 0));  // Conv #8: 64->256, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+
+    // Third residual block
+    this->add(new Conv2d<T>(256, 64, 1, 1, 0));  // Conv #9: 256->64, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(64, 64, 3, 1, 1));   // Conv #10: 64->64, 3x3, SAME padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(64, 256, 1, 1, 0));  // Conv #11: 64->256, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add_identity_layer("Identity_Store");
+    this->add_identity_layer("Identity_OP_Start");
+
+    // Transition to next block with stride 2
+    this->add(new Conv2d<T>(256, 512, 1, 2, 0));  // Conv #12: 256->512, 1x1, stride 2
+    this->add_identity_layer("Identity_OP_Finish"); 
+    this->add(new Conv2d<T>(256, 128, 1, 1, 0));  // Conv #13: 256->128, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    plan_increase_size(NUM_INPUTS, 128, 58, 58); 
+
+    this->add(new Conv2d<T>(128, 128, 3, 2, 0));  // Conv #14: 128->128, 3x3, stride 2, VALID padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(128, 512, 1, 1, 0));  // Conv #15: 128->512, 1x1
+    // this->add_identity_layer("Identity_ADD"); 
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+
+    // Next set of residual blocks (512->128->512)
+    this->add(new Conv2d<T>(512, 128, 1, 1, 0));  // Conv #16: 512->128, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(128, 128, 3, 1, 1));  // Conv #17: 128->128, 3x3, SAME padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(128, 512, 1, 1, 0));  // Conv #18: 128->512, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+
+    // Another residual block
+    this->add(new Conv2d<T>(512, 128, 1, 1, 0));  // Conv #19: 512->128, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(128, 128, 3, 1, 1));  // Conv #20: 128->128, 3x3, SAME padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(128, 512, 1, 1, 0));  // Conv #21: 128->512, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+
+    // Another residual block
+    this->add(new Conv2d<T>(512, 128, 1, 1, 0));  // Conv #22: 512->128, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(128, 128, 3, 1, 1));  // Conv #23: 128->128, 3x3, SAME padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(128, 512, 1, 1, 0));  // Conv #24: 128->512, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add_identity_layer("Identity_Store");
+    this->add_identity_layer("Identity_OP_Start");
+
+    // Transition to next block with stride 2
+    this->add(new Conv2d<T>(512, 1024, 1, 2, 0)); // Conv #25: 512->1024, 1x1, stride 2
+    this->add_identity_layer("Identity_OP_Finish"); 
+    this->add(new Conv2d<T>(512, 256, 1, 1, 0));  // Conv #26: 512->256, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    plan_increase_size(NUM_INPUTS, 256, 30, 30); 
+    this->add(new Conv2d<T>(256, 256, 3, 2, 0));  // Conv #27: 256->256, 3x3, stride 2, VALID padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(256, 1024, 1, 1, 0)); // Conv #28: 256->1024, 1x1
+    // this->add_identity_layer("Identity_ADD"); 
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+
+    // Next set of residual blocks (1024->256->1024)
+    this->add(new Conv2d<T>(1024, 256, 1, 1, 0)); // Conv #29: 1024->256, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(256, 256, 3, 1, 1));  // Conv #30: 256->256, 3x3, SAME padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(256, 1024, 1, 1, 0)); // Conv #31: 256->1024, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+
+    // Another residual block
+    this->add(new Conv2d<T>(1024, 256, 1, 1, 0)); // Conv #32: 1024->256, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(256, 256, 3, 1, 1));  // Conv #33: 256->256, 3x3, SAME padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(256, 1024, 1, 1, 0)); // Conv #34: 256->1024, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+
+    // Another residual block
+    this->add(new Conv2d<T>(1024, 256, 1, 1, 0)); // Conv #35: 1024->256, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(256, 256, 3, 1, 1));  // Conv #36: 256->256, 3x3, SAME padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(256, 1024, 1, 1, 0)); // Conv #37: 256->1024, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+
+    // Another residual block
+    this->add(new Conv2d<T>(1024, 256, 1, 1, 0)); // Conv #38: 1024->256, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(256, 256, 3, 1, 1));  // Conv #39: 256->256, 3x3, SAME padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(256, 1024, 1, 1, 0)); // Conv #40: 256->1024, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+
+    // Another residual block
+    this->add(new Conv2d<T>(1024, 256, 1, 1, 0)); // Conv #41: 1024->256, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(256, 256, 3, 1, 1));  // Conv #42: 256->256, 3x3, SAME padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(256, 1024, 1, 1, 0)); // Conv #43: 256->1024, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add_identity_layer("Identity_Store");
+    this->add_identity_layer("Identity_OP_Start");
+
+    // Transition to final block with stride 2
+    this->add(new Conv2d<T>(1024, 2048, 1, 2, 0)); // Conv #44: 1024->2048, 1x1, stride 2
+    this->add_identity_layer("Identity_OP_Finish"); 
+    this->add(new Conv2d<T>(1024, 512, 1, 1, 0));  // Conv #45: 1024->512, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    plan_increase_size(NUM_INPUTS, 512, 16, 16);
+    this->add(new Conv2d<T>(512, 512, 3, 2, 0));   // Conv #46: 512->512, 3x3, stride 2, VALID padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(512, 2048, 1, 1, 0));  // Conv #47: 512->2048, 1x1
+    // this->add_identity_layer("Identity_ADD"); 
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+
+    // Final residual blocks (2048->512->2048)
+    this->add(new Conv2d<T>(2048, 512, 1, 1, 0));  // Conv #48: 2048->512, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(512, 512, 3, 1, 1));   // Conv #49: 512->512, 3x3, SAME padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(512, 2048, 1, 1, 0));  // Conv #50: 512->2048, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+
+    // Another residual block
+    this->add(new Conv2d<T>(2048, 512, 1, 1, 0));  // Conv #51: 2048->512, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(512, 512, 3, 1, 1));   // Conv #52: 512->512, 3x3, SAME padding
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+    this->add(new Conv2d<T>(512, 2048, 1, 1, 0));  // Conv #53: 512->2048, 1x1
+    this->add(new BatchNorm2d<T>());
+    this->add(new ReLU<T>());
+
+    // // Final pooling and classification
+    // this->add(new AvgPool2d<T>(7, 7, 0));          // Global average pooling: 7x7
+        this->add( new AdaptiveAvgPool2d<T>(1, 1));
+        this->add( new Flatten<T>());
+        this->add(new Linear<T>(512 * 4, num_classes));
+}
+
+void compile(vector<int> input_shape, Optimizer* optim=nullptr, Loss<T>* loss=nullptr) override
+{
+    // set optimizer & loss
+    this->optim = optim;
+    this->loss = loss;
+
+    // set first & last layer
+    this->net.front()->is_first = true;
+    this->net.back()->is_last = true;
+
+    vector<int> identity = input_shape;
+   vector<int> out = input_shape;
+    vector<int> temp = input_shape; 
+
+
+    // set network
+    int i = 0;
+
+    for (int l = 0; l < this->net.size(); l++) {
+        if(this->identity_layers.size() != 0 && i < this->identity_layers.size()) {
+            while(this->identity_layers[i] == l)  { 
+                    if(this->identity_layers_type[i] == "Identity_Store") {
+                        identity = out; //store identity of current layer
+                        /* std::cout << "Identity_Store" << std::endl; */
+                    }
+                    else if(this->identity_layers_type[i] == "Identity_OP_Start") {
+                        //network starts operating on identity, storing last output
+                        temp = out; 
+                        out = identity;
+                        /* std::cout << "Identity_OP_Start" << std::endl; */
+                    }
+                    else if(this->identity_layers_type[i] == "Identity_OP_Finish") {
+                        //network finished processing identity, loading back last output
+                        identity = out;
+                        out = temp;
+                        /* std::cout << "Identity_OP_Finish" << std::endl; */
+                    }
+                i++;
+                if(i >= this->identity_layers.size()) {
+                    break;
+                }
+                }
+
+        }
+        this->net[l]->set_layer(out);
+        if(increase_size[0] == l) {
+            auto layer = this->net[l]->output;
+            incr_size(layer, increased_sized[0], increased_sized[1], increased_sized[2], increased_sized[3]);
+            out = {increased_sized[0], increased_sized[1], increased_sized[2], increased_sized[3]};
+            increase_size.erase(increase_size.begin());
+            increased_sized.erase(increased_sized.begin(), increased_sized.begin() + 4);
+        }
+        else
+            out = this->net[l]->output_shape();
+    
+    }
+    // set Loss layer
+    if (loss != nullptr) {
+        loss->set_layer(this->net.back()->output_shape());
+}
+}
+void plan_increase_size(int n, int ic, int ih, int iw)
+{
+    increase_size.push_back(this->net.size() - 1);
+    increased_sized.push_back(n);
+    increased_sized.push_back(ic);
+    increased_sized.push_back(ih);
+    increased_sized.push_back(iw);
+}
+
+template <typename L>
+void incr_size(L layer, int n, int ic, int ih, int iw)
+{
+    layer.resize(n * ic, ih * iw);
+}
+
+};
+
+
 
