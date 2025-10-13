@@ -599,14 +599,20 @@ void compile(vector<int> input_shape, Optimizer* optim=nullptr, Loss<T>* loss=nu
         }
         this->net[l]->set_layer(out);
         if(increase_size[0] == l) {
-            auto layer = this->net[l]->output;
+            auto& layer = this->net[l]->output;
             incr_size(layer, increased_sized[0], increased_sized[1], increased_sized[2], increased_sized[3]);
-            out = {increased_sized[0], increased_sized[1], increased_sized[2], increased_sized[3]};
+            if(increased_sized[1] > 0)
+                out = {increased_sized[0], increased_sized[1], increased_sized[2], increased_sized[3]};
+            else
+                out = {increased_sized[0], increased_sized[2]};
             increase_size.erase(increase_size.begin());
             increased_sized.erase(increased_sized.begin(), increased_sized.begin() + 4);
         }
         else
+        {
             out = this->net[l]->output_shape();
+        }
+                
     
     }
     // set Loss layer
@@ -624,7 +630,7 @@ void plan_increase_size(int n, int ic, int ih, int iw)
 }
 
 template <typename L>
-void incr_size(L layer, int n, int ic, int ih, int iw)
+void incr_size(L &layer, int n, int ic, int ih, int iw)
 {
     layer.resize(n * ic, ih * iw);
 }

@@ -191,7 +191,7 @@ void forward(const MatX<T>& prev_out, bool is_training) override
                 return; // skip ReLU if fused with MaxPool
             }
 #endif
-            assert(this->output.size() == prev_out.size());
+            // assert(this->output.size() == prev_out.size());
 #if FUSE_RELU_AVG == 1
             curr_denom = denom;
 #endif

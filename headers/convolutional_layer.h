@@ -1,6 +1,5 @@
 #pragma once
 #include "layer.h"
-
 namespace simple_nn
 {
     template<typename T>
