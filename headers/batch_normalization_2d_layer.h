@@ -185,7 +185,7 @@ namespace simple_nn
                 this->output(i, j) = s.prepare_dot_ex_lxly_a_known(prev_out(i, j) - m);
 #else
 
-#if PROTOCOL == 4 && AB2_TRIPLES == 1 
+#if A_KNOWN == 1 
                 this->output(i, j) = s.prepare_dot_a_known(prev_out(i, j) - m);
 #else
                 this->output(i, j) = s.prepare_dot(prev_out(i, j) - m);
