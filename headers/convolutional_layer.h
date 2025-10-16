@@ -133,6 +133,14 @@ namespace simple_nn
 #if PROTOCOL == 4 && CONV_TRIPLES == 1 && PUBLIC_WEIGHTS == 0
         T::SetupConv2dTriples(prev_out.data(), kernel.data(), this->output.data(), batch, ih , iw, ic, oc, kh, kw, pad, stride, oh, ow);
 #endif
+#if PROTOCOL == 4 && BN2D_TRIPLES == 1 && PUBLIC_WEIGHTS == 0 && FUSE_CONV_BN_SIM == 1
+        const auto move_var = new T[ch]; 
+        // TODO: for fused conv-bn C needs to be set to beta - (sigma * mu) by modelowner and move_var needs to be set to the actual sigma array
+        T::SetupBatchNorm2DTriples(prev_out.data(), move_var, this->output.data(), batch, ch, h, w);
+        T::SetupBatchNorm2DTriples(prev_out.data(), move_var, this->output.data(), batch, ch, h, w);
+        T::SetupBatchNorm2DTriples(prev_out.data(), move_var, this->output.data(), batch, ch, h, w);
+        delete[] move_var;
+#endif
 
 
 #if USE_CUDA_GEMM == 2 || USE_CUDA_GEMM == 4 // Outsource whole convolution to GPU
@@ -147,7 +155,7 @@ namespace simple_nn
         }
 #else // CPU or outsource only GEMM to GPU
 		for (int n = 0; n < batch; n++) {
-            auto C = this->output.data() + (oc * ohw) * n;
+            auto C = this->output.data() + (oc * ohw) * n; 
 		    const T* im = prev_out.data() + (ic * ihw) * n;
 			im2col(im, ic, ih, iw, kh, stride, pad, im_col.data());
             auto A = kernel.data();

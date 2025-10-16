@@ -103,7 +103,7 @@ namespace simple_nn
 			move_mu = move_mu * momentum + mu * (1 - momentum);
 			move_var = move_var * momentum + var * (1 - momentum);
 #else
-#if FUSE_CONV_BN_SIM == 1
+#if FUSE_CONV_BN_SIM == 1 || FUSE_CONV_BN == 1
             std::copy(prev_out.data(), prev_out.data() + prev_out.size(), this->output.data());
             return;
 #endif
