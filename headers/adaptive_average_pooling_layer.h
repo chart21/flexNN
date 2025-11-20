@@ -113,6 +113,7 @@ return;
 }
 #endif
 
+#if FUSE_RELU_AVG == 0
 for (int i = 0; i < this->output.size(); i++)
 {
 #if TRUNC_APPROACH == 0 || TRUNC_APPROACH == 4
@@ -137,7 +138,7 @@ for (int i = 0; i < this->output.size(); i++)
             out[i].complete_public_mult_fixed();
 }
 #endif
-
+#endif
 delete[] denominators;
 
 #if TRUNC_APPROACH == 1 
