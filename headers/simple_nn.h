@@ -684,7 +684,6 @@ void SimpleNN<T>::complete_read_params()
 #endif
 #endif
 #if DATAOWNER != -1
-            T::communicate();
             test_XX(i / (BASE_DIV) + c, j).template prepare_receive_from<DATAOWNER>(tmp2[c]);
 #endif
         }
