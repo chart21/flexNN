@@ -385,7 +385,9 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                 for (int i = 0; i < s2; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
+                #if WEIGHT_SHARING_OPT_SIM == 0
                     lc->b[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]));
+                #endif
 #else
                     lc->b[i] = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]);
 #endif
@@ -430,13 +432,15 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                 for (int i = 0; i < s2; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
+#if WEIGHT_SHARING_OPT_SIM == 0
                     lc->bias[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]));
+#endif
 #else
                     lc->bias[i] = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]);
 #endif
                 }
             }
-
+#if FUSE_CONV_BN == 0
         else if (l->type == LayerType::BATCHNORM1D) {
             BatchNorm1d<T>* lc = dynamic_cast<BatchNorm1d<T>*>(l);
             int s1 = (int)lc->move_mu.size();
@@ -550,6 +554,7 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                 }
 
         }
+#endif
     }
 }
 
@@ -569,10 +574,12 @@ void SimpleNN<T>::complete_read_params()
                 {
                     lc->W(i / lc->W.cols(), i % lc->W.cols()).template complete_receive_from<id>();
                 }
+#if WEIGHT_SHARING_OPT_SIM == 0
                 for (int i = 0; i < s2; i++)
                 {
                     lc->b[i].template complete_receive_from<id>();
                 }
+#endif
             }
         else if (l->type == LayerType::CONV2D) {
             Conv2d<T>* lc = dynamic_cast<Conv2d<T>*>(l);
@@ -583,12 +590,14 @@ void SimpleNN<T>::complete_read_params()
                 {
                     lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()).template complete_receive_from<id>();
                 } 
+#if WEIGHT_SHARING_OPT_SIM == 0
                 for (int i = 0; i < s2; i++)
                 {
                     lc->bias[i].template complete_receive_from<id>();
                 }
+#endif
             }
-
+#if FUSE_CONV_BN == 0
         else if (l->type == LayerType::BATCHNORM1D)
         {
                 BatchNorm1d<T>* lc = dynamic_cast<BatchNorm1d<T>*>(l);
@@ -632,6 +641,7 @@ void SimpleNN<T>::complete_read_params()
                 }
 
         }
+#endif
     }
 }
 
