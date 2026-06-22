@@ -346,7 +346,8 @@ template <typename T>
 template <int id>
 void SimpleNN<T>::prepare_read_params(fstream& fs)
 {
-    for (Layer<T>* l : net) {
+    for (size_t layer_idx = 0; layer_idx < net.size(); layer_idx++) {
+        Layer<T>* l = net[layer_idx];
         vector<float> tempMatrix1, tempMatrix2, tempMatrix3, tempMatrix4; // Temporary vectors for parameter storage
 
         if (l->type == LayerType::LINEAR) {
@@ -400,6 +401,8 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
             int s2 = lc->bias.size();
             tempMatrix1.resize(s1);
             tempMatrix2.resize(s2);
+            vector<double> convKernel(s1);
+            vector<double> convBias(s2);
 
             /* if (mode == "write") { */
                 /* for (int i = 0; i < s1; i++) */ 
@@ -419,28 +422,68 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
                 fs.read((char*)tempMatrix1.data(), sizeof(float) * s1);
                 fs.read((char*)tempMatrix2.data(), sizeof(float) * s2);
             }
+            for (int i = 0; i < s1; i++) {
+                convKernel[i] = static_cast<double>(tempMatrix1[i]);
+            }
+            for (int i = 0; i < s2; i++) {
+                convBias[i] = static_cast<double>(tempMatrix2[i]);
+            }
+
+#if FUSE_CONV_BN == 1
+            if (layer_idx + 1 < net.size() && net[layer_idx + 1]->type == LayerType::BATCHNORM2D) {
+                BatchNorm2d<T>* batchnorm = dynamic_cast<BatchNorm2d<T>*>(net[layer_idx + 1]);
+                int bn_size = (int)batchnorm->move_mu.size();
+                if (bn_size != lc->kernel.rows()) {
+                    cout << "Cannot fuse Conv2d and BatchNorm2d: channel count mismatch." << endl;
+                    exit(1);
+                }
+
+                vector<float> batchnorm_mu(bn_size), batchnorm_var(bn_size), batchnorm_gamma(bn_size), batchnorm_beta(bn_size);
+                if(!(!fs))
+                {
+                    fs.read((char*)batchnorm_mu.data(), sizeof(float) * bn_size);
+                    fs.read((char*)batchnorm_var.data(), sizeof(float) * bn_size);
+                    fs.read((char*)batchnorm_gamma.data(), sizeof(float) * bn_size);
+                    fs.read((char*)batchnorm_beta.data(), sizeof(float) * bn_size);
+                }
+
+                lc->enable_bias();
+                convBias.resize(lc->bias.size(), 0.0);
+                s2 = lc->bias.size();
+
+                for (int out_channel = 0; out_channel < bn_size; out_channel++) {
+                    double scale = static_cast<double>(batchnorm_gamma[out_channel]) /
+                                   std::sqrt(static_cast<double>(batchnorm_var[out_channel]) + 0.00001);
+                    for (int kernel_idx = 0; kernel_idx < lc->kernel.cols(); kernel_idx++) {
+                        convKernel[out_channel * lc->kernel.cols() + kernel_idx] *= scale;
+                    }
+                    convBias[out_channel] = convBias[out_channel] * scale -
+                                            static_cast<double>(batchnorm_mu[out_channel]) * scale +
+                                            static_cast<double>(batchnorm_beta[out_channel]);
+                }
+            }
+#endif
 
                 for (int i = 0; i < s1; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
-                    lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()).template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]));
+                    lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()).template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(convKernel[i]));
                     
 #else
-                    lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()) = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix1[i]);
+                    lc->kernel(i / lc->kernel.cols(), i % lc->kernel.cols()) = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(convKernel[i]);
 #endif
                 } 
                 for (int i = 0; i < s2; i++)
                 {
 #if PUBLIC_WEIGHTS == 0
 #if WEIGHT_SHARING_OPT_SIM == 0
-                    lc->bias[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]));
+                    lc->bias[i].template prepare_receive_and_replicate<id>(FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(convBias[i]));
 #endif
 #else
-                    lc->bias[i] = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(tempMatrix2[i]);
+                    lc->bias[i] = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::float_to_ufixed(convBias[i]);
 #endif
                 }
             }
-#if FUSE_CONV_BN == 0
         else if (l->type == LayerType::BATCHNORM1D) {
             BatchNorm1d<T>* lc = dynamic_cast<BatchNorm1d<T>*>(l);
             int s1 = (int)lc->move_mu.size();
@@ -497,6 +540,26 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
 #endif
                 }
         }
+#if FUSE_CONV_BN == 1
+        else if (l->type == LayerType::BATCHNORM2D) {
+            bool fused_into_previous_conv = layer_idx > 0 && net[layer_idx - 1]->type == LayerType::CONV2D;
+            if (!fused_into_previous_conv && !(!fs)) {
+                BatchNorm2d<T>* lc = dynamic_cast<BatchNorm2d<T>*>(l);
+                int s1 = (int)lc->move_mu.size();
+                int s2 = (int)lc->move_var.size();
+                int s3 = (int)lc->gamma.size();
+                int s4 = (int)lc->beta.size();
+                tempMatrix1.resize(s1);
+                tempMatrix2.resize(s2);
+                tempMatrix3.resize(s3);
+                tempMatrix4.resize(s4);
+                fs.read((char*)tempMatrix1.data(), sizeof(float) * s1);
+                fs.read((char*)tempMatrix2.data(), sizeof(float) * s2);
+                fs.read((char*)tempMatrix3.data(), sizeof(float) * s3);
+                fs.read((char*)tempMatrix4.data(), sizeof(float) * s4);
+            }
+        }
+#else
         else if (l->type == LayerType::BATCHNORM2D) {
             BatchNorm2d<T>* lc = dynamic_cast<BatchNorm2d<T>*>(l);
             int s1 = (int)lc->move_mu.size();
@@ -597,7 +660,6 @@ void SimpleNN<T>::complete_read_params()
                 }
 #endif
             }
-#if FUSE_CONV_BN == 0
         else if (l->type == LayerType::BATCHNORM1D)
         {
                 BatchNorm1d<T>* lc = dynamic_cast<BatchNorm1d<T>*>(l);
@@ -619,6 +681,7 @@ void SimpleNN<T>::complete_read_params()
                     lc->beta[i].template complete_receive_from<id>();
                 }
 			}
+        #if FUSE_CONV_BN == 0
         else if (l->type == LayerType::BATCHNORM2D)
         {
                 BatchNorm2d<T>* lc = dynamic_cast<BatchNorm2d<T>*>(l);

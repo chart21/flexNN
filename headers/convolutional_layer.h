@@ -34,6 +34,7 @@ namespace simple_nn
 #endif
 		Conv2d(int in_channels, int out_channels, int kernel_size, int stride, int padding, bool use_bias = "true",
 			string option = "kaiming_uniform");
+		void enable_bias();
 		void set_layer(const vector<int>& input_shape) override;
 		void forward(const MatX<T>& prev_out, bool is_training) override;
 		void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override;
@@ -68,6 +69,20 @@ namespace simple_nn
 		pad(padding),
         use_bias(use_bias),
 		option(option) {}
+
+	template<typename T>
+	void Conv2d<T>::enable_bias()
+	{
+		use_bias = true;
+		if (bias.size() != oc) {
+			bias.resize(oc);
+			bias.setZero();
+		}
+		if (dbias.size() != oc) {
+			dbias.resize(oc);
+			dbias.setZero();
+		}
+	}
 
     template<typename T>
 	void Conv2d<T>::set_layer(const vector<int>& input_shape)
