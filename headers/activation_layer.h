@@ -176,6 +176,7 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 	public:
 #if FUSE_RELU_AVG == 1 || FUSE_RELU_MAX == 1
 		ReLU(int denominator = 1) : Activation<T>(), denom(denominator) {}
+	void set_fused_avgpool_denominator(int denominator) { denom = denominator; }
     private:
         int denom;
 #else

@@ -24,6 +24,7 @@ namespace simple_nn
 		MatX<T> dkernel;
 		VecX<T> dbias;
 		MatX<T> im_col;
+		bool fuse_batchnorm_parameters;
 	public:
 #if PUBLIC_WEIGHTS == 1
         MatX<UINT_TYPE> kernel;
@@ -34,6 +35,8 @@ namespace simple_nn
 #endif
 		Conv2d(int in_channels, int out_channels, int kernel_size, int stride, int padding, bool use_bias = "true",
 			string option = "kaiming_uniform");
+		void enable_batchnorm_fusion();
+		bool batchnorm_fusion_enabled() const;
 		void enable_bias();
 		void set_layer(const vector<int>& input_shape) override;
 		void forward(const MatX<T>& prev_out, bool is_training) override;
@@ -68,7 +71,20 @@ namespace simple_nn
         stride(stride),
 		pad(padding),
         use_bias(use_bias),
+		fuse_batchnorm_parameters(false),
 		option(option) {}
+
+	template<typename T>
+	void Conv2d<T>::enable_batchnorm_fusion()
+	{
+		fuse_batchnorm_parameters = true;
+	}
+
+	template<typename T>
+	bool Conv2d<T>::batchnorm_fusion_enabled() const
+	{
+		return fuse_batchnorm_parameters;
+	}
 
 	template<typename T>
 	void Conv2d<T>::enable_bias()

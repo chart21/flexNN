@@ -49,7 +49,17 @@ namespace simple_nn
 	};
 
     template<typename T>
-	void SimpleNN<T>::add(Layer<T>* layer) { net.push_back(layer); }
+    void SimpleNN<T>::add(Layer<T>* layer) {
+#if FUSE_CONV_BN == 1
+        if (layer->type == LayerType::BATCHNORM2D && !net.empty() && net.back()->type == LayerType::CONV2D) {
+            Conv2d<T>* conv = dynamic_cast<Conv2d<T>*>(net.back());
+            conv->enable_batchnorm_fusion();
+            delete layer;
+            return;
+        }
+#endif
+        net.push_back(layer);
+    }
 
     template<typename T>
 	void SimpleNN<T>::compile(vector<int> input_shape, Optimizer* optim, Loss<T>* loss)
@@ -67,6 +77,18 @@ namespace simple_nn
 			if (l == 0) net[l]->set_layer(input_shape);
 			else net[l]->set_layer(net[l - 1]->output_shape());
 		}
+
+#if FUSE_RELU_AVG == 1
+        for (int l = 0; l + 1 < net.size(); l++) {
+            if (net[l]->type == LayerType::ACTIVATION && net[l + 1]->type == LayerType::AVGPOOL2D) {
+                ReLU<T>* relu = dynamic_cast<ReLU<T>*>(net[l]);
+                if (relu != nullptr) {
+                    AvgPool2d<T>* avgpool = dynamic_cast<AvgPool2d<T>*>(net[l + 1]);
+                    relu->set_fused_avgpool_denominator(avgpool->average_denominator());
+                }
+            }
+        }
+#endif
 
 		// set Loss layer
 		if (loss != nullptr) {
@@ -320,6 +342,11 @@ namespace simple_nn
 				const Conv2d<T>* lc = dynamic_cast<const Conv2d<T>*>(l);
 				total_params += (int)lc->kernel.size();
 				total_params += (int)lc->bias.size();
+#if FUSE_CONV_BN == 1
+                if (lc->batchnorm_fusion_enabled()) {
+                    total_params += (int)lc->kernel.rows() * 4;
+                }
+#endif
 			}
 			else if (l->type == LayerType::BATCHNORM1D) {
 				const BatchNorm1d<T>* lc = dynamic_cast<const BatchNorm1d<T>*>(l);
@@ -430,9 +457,12 @@ void SimpleNN<T>::prepare_read_params(fstream& fs)
             }
 
 #if FUSE_CONV_BN == 1
-            if (layer_idx + 1 < net.size() && net[layer_idx + 1]->type == LayerType::BATCHNORM2D) {
-                BatchNorm2d<T>* batchnorm = dynamic_cast<BatchNorm2d<T>*>(net[layer_idx + 1]);
-                int bn_size = (int)batchnorm->move_mu.size();
+            if (lc->batchnorm_fusion_enabled() || (layer_idx + 1 < net.size() && net[layer_idx + 1]->type == LayerType::BATCHNORM2D)) {
+                int bn_size = lc->kernel.rows();
+                if (layer_idx + 1 < net.size() && net[layer_idx + 1]->type == LayerType::BATCHNORM2D) {
+                    BatchNorm2d<T>* batchnorm = dynamic_cast<BatchNorm2d<T>*>(net[layer_idx + 1]);
+                    bn_size = (int)batchnorm->move_mu.size();
+                }
                 if (bn_size != lc->kernel.rows()) {
                     cout << "Cannot fuse Conv2d and BatchNorm2d: channel count mismatch." << endl;
                     exit(1);

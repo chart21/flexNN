@@ -22,6 +22,7 @@ namespace simple_nn
 		// MatX<T> im_col;
 	public:
 		AvgPool2d(int kernel_size, int stride, int pad = 0);
+		int average_denominator() const;
 		void set_layer(const vector<int>& input_shape) override;
 		void forward(const MatX<T>& prev_out, bool is_training) override;
 		void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override;
@@ -44,6 +45,12 @@ namespace simple_nn
 		kw(kernel_size),
 		stride(stride),
         pad(pad){}
+
+    template<typename T>
+	int AvgPool2d<T>::average_denominator() const
+	{
+		return kh * kw;
+	}
 
     template<typename T>
 	void AvgPool2d<T>::set_layer(const vector<int>& input_shape)

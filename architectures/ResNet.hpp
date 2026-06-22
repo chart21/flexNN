@@ -296,6 +296,17 @@ else
             out = this->net[l]->output_shape();
 		
         }
+#if FUSE_RELU_AVG == 1
+        for (int l = 0; l + 1 < this->net.size(); l++) {
+            if (this->net[l]->type == LayerType::ACTIVATION && this->net[l + 1]->type == LayerType::AVGPOOL2D) {
+                ReLU<T>* relu = dynamic_cast<ReLU<T>*>(this->net[l]);
+                if (relu != nullptr) {
+                    AvgPool2d<T>* avgpool = dynamic_cast<AvgPool2d<T>*>(this->net[l + 1]);
+                    relu->set_fused_avgpool_denominator(avgpool->average_denominator());
+                }
+            }
+        }
+#endif
 		// set Loss layer
 		if (loss != nullptr) {
 			loss->set_layer(this->net.back()->output_shape());
