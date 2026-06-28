@@ -34,6 +34,7 @@ namespace simple_nn
 	private:
 		virtual void forward(const MatX<T>& X, bool is_training);
 		void classify(const MatX<T>& output, VecXi& classified);
+		void verify_layer_output(const MatX<T>& output, int idx) const;
 		/* void error_criterion(const VecXi& classified, const VecXi& labels, T& error_acc); */
 		void error_criterion(const VecXi& classified, const VecXi& labels, float& error_acc);
 		void loss_criterion(const MatX<T>& output, const VecXi& labels, T& loss_acc);
@@ -167,23 +168,62 @@ namespace simple_nn
     template<typename T>
 	void SimpleNN<T>::forward(const MatX<T>& X, bool is_training)
 	{
+#if VERIFY_CORRECTNESS == 1
+        verify_layer_output(X, -1);  // reveal the network INPUT
+#endif
 		for (int l = 0; l < net.size(); l++) {
 #if PRINT_TIMINGS == 1
                 start_layer_stats(toString(net[l]->type), l);
 #endif
 			if (l == 0) net[l]->forward(X, is_training);
-			else 
+			else
             {
-                net[l]->forward(net[l - 1]->output, is_training); 
-#if IS_TRAINING == 0
+                net[l]->forward(net[l - 1]->output, is_training);
+#if IS_TRAINING == 0 && VERIFY_CORRECTNESS == 0
                 delete net[l - 1];
 #endif
 		    }
+#if VERIFY_CORRECTNESS == 1
+            verify_layer_output(net[l]->output, l);
+#endif
 #if PRINT_TIMINGS == 1
                 stop_layer_stats(l);
 #endif
 		}
 	}
+
+    template<typename T>
+    void SimpleNN<T>::verify_layer_output(const MatX<T>& output, int idx) const
+    {
+        const int rows = (int)output.rows();
+        const int cols = (int)output.cols();
+        // reveal every element (in BOTH pre & live so rounds stay matched)
+        for (int i = 0; i < rows; i++)
+            for (int j = 0; j < cols; j++)
+                output(i, j).prepare_reveal_to_all();
+        T::communicate();
+        float mn = 1e30f, mx = -1e30f, absmax = 0.f;
+        long nz = 0, n = 0;
+        float row0[10]; int fc = 0;
+        for (int i = 0; i < rows; i++)
+            for (int j = 0; j < cols; j++) {
+                float v = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(
+                    output(i, j).complete_reveal_to_all_single());
+                if (i == 0 && fc < 10) row0[fc++] = v;
+                if (v < mn) mn = v;
+                if (v > mx) mx = v;
+                if (std::fabs(v) > absmax) absmax = std::fabs(v);
+                if (v != 0.f) nz++;
+                n++;
+            }
+        if (current_phase == PHASE_LIVE && process_offset == 0) {
+            std::cout << "VERIFY L" << idx << " " << (idx < 0 ? "INPUT" : toString(net[idx]->type))
+                      << " shape[" << rows << "x" << cols << "] nz=" << nz << "/" << n
+                      << " min=" << mn << " max=" << mx << " absmax=" << absmax << " row0:";
+            for (int k = 0; k < fc; k++) std::cout << " " << row0[k];
+            std::cout << "\n";
+        }
+    }
 
     template<typename T>
 	void SimpleNN<T>::classify(const MatX<T>& output, VecXi& classified)
@@ -754,7 +794,13 @@ void SimpleNN<T>::complete_read_params()
 		VecXi classified(batch); //Adjusted because of sint
 
 		system_clock::time_point start = system_clock::now();
+#if VERIFY_CORRECTNESS == 1
+		std::cout << "P" << PARTY << ": [LOC ph" << current_phase << "] evaluate START n_batch=" << n_batch << std::endl;
+#endif
 		for (int n = 0; n < n_batch; n++) {
+#if VERIFY_CORRECTNESS == 1
+			std::cout << "P" << PARTY << ": [LOC ph" << current_phase << "] batch " << n << " get_x..." << std::endl;
+#endif
 			auto test_X = data_loader.get_x(n); //Adjusted because of sint
 			VecXi Y = data_loader.get_y(n);
 #if JIT_VEC == 1 
@@ -793,14 +839,23 @@ void SimpleNN<T>::complete_read_params()
     }
 }
 #if DATAOWNER != -1
+#if VERIFY_CORRECTNESS == 1
+    std::cout << "P" << PARTY << ": [LOC ph" << current_phase << "] data prepared, communicate..." << std::endl;
+#endif
     T::communicate();
     for (int j = 0; j < test_XX.cols(); ++j) {
         for (int i = 0; i < test_XX.rows(); ++i) {
             test_XX(i, j).template complete_receive_from<DATAOWNER>();
         }
     }
+#if VERIFY_CORRECTNESS == 1
+    std::cout << "P" << PARTY << ": [LOC ph" << current_phase << "] data shared, starting forward" << std::endl;
+#endif
 #endif
 			forward(test_XX, false);
+#if VERIFY_CORRECTNESS == 1
+            std::cout << "P" << PARTY << ": [LOC ph" << current_phase << "] forward done" << std::endl;
+#endif
 #else
 			forward(test_X, false);
 #endif

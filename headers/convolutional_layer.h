@@ -139,6 +139,11 @@ namespace simple_nn
     template<typename T>
 	void Conv2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
+#if PUBLIC_WEIGHTS == 1
+        // Only the network's first layer sees the raw data-owner input (non-owner mask = 0); route its truncation
+        // to the *_a_known variant. Re-set every layer so later convs use the normal truncation.
+        g_a_known_input = this->is_first ? 1 : 0;
+#endif
         T::communicate();
         this->output.setZero();
 #if TRUNC_DELAYED == 1
