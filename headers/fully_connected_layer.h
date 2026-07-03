@@ -86,13 +86,34 @@ namespace simple_nn
     all_positive = false;
 #endif
         
+#if PROTOCOL == 4 && ROT_PREPROCESSING_OPT == 1 && RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1
+        // The bias added after the GEMM shifts the output masks by the bias mask shares; publish
+        // the EFFECTIVE bias mask (what add_bias will add) so the reshare bake can pre-compensate.
+        std::vector<DATATYPE> bake_bias_l(this->output.cols());
+        for (int i = 0; i < this->output.cols(); ++i)
+#if TRUNC_DELAYED == 0
+            bake_bias_l[i] = b.data()[i].get_share().get_mask();
+#elif PUBLIC_WEIGHTS == 0
+            bake_bias_l[i] = b.data()[i].mult_public(UINT_TYPE(1) << FRACTIONAL).get_share().get_mask();
+#else
+            bake_bias_l[i] = SET_ALL_ZERO();  // public bias carries no mask
+#endif
+        g_bake_bias_l = bake_bias_l.data();
+        g_bake_bias_len = (uint64_t)this->output.cols();
+#endif
         for (int n = 0; n < batch; n++) {
 
             const auto W = this->W.data();
-            const T* A = prev_out.data() + n * prev_out.cols(); 
+            const T* A = prev_out.data() + n * prev_out.cols();
             T* C = this->output.data() + n * this->output.cols();
+            g_bake_batch_offset = (uint64_t)n * this->output.cols();  // batch-global base for the reshare bake
             prepare_Matrix_Vector_Product(W, A, C, this->W.rows(), this->W.cols());
         }
+        g_bake_batch_offset = 0;
+#if PROTOCOL == 4 && ROT_PREPROCESSING_OPT == 1 && RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1
+        g_bake_bias_l = nullptr;
+        g_bake_bias_len = 0;
+#endif
 
             T::communicate();
             auto C = this->output.data();
