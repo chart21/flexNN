@@ -190,7 +190,8 @@ namespace simple_nn
             send_GEMM_GPU(C, oc, ohw);
         }
 #else // CPU or outsource only GEMM to GPU
-#if PROTOCOL == 4 && ROT_PREPROCESSING_OPT == 1 && RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1
+#if PROTOCOL == 4 && ROT_PREPROCESSING_OPT == 1 && \
+    ((RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1) || A2B_CONV_BAKE_ACTIVE)
         // see fully_connected_layer.h: publish the effective bias mask (expanded per output value,
         // bias repeats per channel) so the reshare bake can pre-compensate the post-GEMM bias add
         std::vector<DATATYPE> bake_bias_l;
@@ -231,7 +232,8 @@ namespace simple_nn
             prepare_GEMM(A, B, C, m, p, f,true);
         }
         g_bake_batch_offset = 0;
-#if PROTOCOL == 4 && ROT_PREPROCESSING_OPT == 1 && RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1
+#if PROTOCOL == 4 && ROT_PREPROCESSING_OPT == 1 && \
+    ((RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1) || A2B_CONV_BAKE_ACTIVE)
         g_bake_bias_l = nullptr;
         g_bake_bias_len = 0;
 #endif

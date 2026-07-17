@@ -86,7 +86,8 @@ namespace simple_nn
     all_positive = false;
 #endif
         
-#if PROTOCOL == 4 && ROT_PREPROCESSING_OPT == 1 && RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1
+#if PROTOCOL == 4 && ROT_PREPROCESSING_OPT == 1 && \
+    ((RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1) || A2B_CONV_BAKE_ACTIVE)
         // The bias added after the GEMM shifts the output masks by the bias mask shares; publish
         // the EFFECTIVE bias mask (what add_bias will add) so the reshare bake can pre-compensate.
         std::vector<DATATYPE> bake_bias_l(this->output.cols());
@@ -110,7 +111,8 @@ namespace simple_nn
             prepare_Matrix_Vector_Product(W, A, C, this->W.rows(), this->W.cols());
         }
         g_bake_batch_offset = 0;
-#if PROTOCOL == 4 && ROT_PREPROCESSING_OPT == 1 && RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1
+#if PROTOCOL == 4 && ROT_PREPROCESSING_OPT == 1 && \
+    ((RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1) || A2B_CONV_BAKE_ACTIVE)
         g_bake_bias_l = nullptr;
         g_bake_bias_len = 0;
 #endif
