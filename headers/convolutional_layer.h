@@ -139,6 +139,12 @@ namespace simple_nn
     template<typename T>
 	void Conv2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
+#if PROTOCOL == 4 && A_KNOWN == 0 && PUBLIC_WEIGHTS == 0 && BEAVER == 1
+        // First layer: the raw data-owner input (m = 0 under SHARE_PREP) breaks the SecureML
+        // truncation share-pair distribution - re-randomize it first (see remask_range in GEMM.hpp).
+        if (this->is_first)
+            remask_range(const_cast<T*>(prev_out.data()), (int)prev_out.size());
+#endif
 #if PUBLIC_WEIGHTS == 1
         // Only the network's first layer sees the raw data-owner input (non-owner mask = 0); route its truncation
         // to the *_a_known variant. Re-set every layer so later convs use the normal truncation.

@@ -181,8 +181,12 @@ namespace simple_nn
                 auto s = V[c];
 				for (int j = 0; j < hw; j++) {
 #if PUBLIC_WEIGHTS == 0
-#if PROTOCOL == 4 && BN2D_TRIPLES == 1 
+#if PROTOCOL == 4 && BN2D_TRIPLES == 1
+#if A_KNOWN == 1
                 this->output(i, j) = s.prepare_dot_ex_lxly_a_known(prev_out(i, j) - m);
+#else
+                this->output(i, j) = s.prepare_dot_ex_lxly(prev_out(i, j) - m);  // AB-flavored BN triples
+#endif
 #else
 
 #if A_KNOWN == 1 
