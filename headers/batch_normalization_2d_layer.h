@@ -175,11 +175,23 @@ namespace simple_nn
         const auto* V = move_var.data();
         #endif
 		for (int n = 0; n < batch; n++) {
+#if A2B_ONLINE_OPT == 1 && A2B_CONV_BAKE == 1 && DATTYPE == BITLENGTH
+            // A2B_CONV_BAKE prescribes the mask of the value that reaches the DRELU. In a plain
+            // conv -> ReLU network that value is the conv output, so the conv carries the bake. Here
+            // BatchNorm sits in between and assigns its OWN output mask, which is what the A2B then
+            // converts - so the commitment has to be carried by THIS layer as well, or [c] describes a
+            // mask nothing holds any more and every DRELU decides on garbage. Same batch-element base
+            // and layer-local indexing as the conv/GEMM bake.
+            g_bake_batch_offset = (uint64_t)(ch * hw) * n;
+#endif
 			for (int c = 0; c < ch; c++) {
 				int i = c + ch * n;
 				auto m = M[c];
                 auto s = V[c];
 				for (int j = 0; j < hw; j++) {
+#if A2B_ONLINE_OPT == 1 && A2B_CONV_BAKE == 1 && DATTYPE == BITLENGTH
+                const int bake_e = c * hw + j;  // layer-local output index within the batch element
+#endif
 #if PUBLIC_WEIGHTS == 0
 #if PROTOCOL == 4 && BN2D_TRIPLES == 1
 #if A_KNOWN == 1
@@ -197,14 +209,22 @@ namespace simple_nn
 #endif
                 
 #if TRUNC_APPROACH > 0 || TRUNC_DELAYED == 1
-#if PROTOCOL == 4 && BN2D_TRIPLES == 1 
+#if PROTOCOL == 4 && BN2D_TRIPLES == 1
+#if A2B_ONLINE_OPT == 1 && A2B_CONV_BAKE == 1 && DATTYPE == BITLENGTH
+                    this->output(i, j).mask_and_send_dot_without_trunc_with_triple_baked(bake_e);
+#else
                     this->output(i, j).mask_and_send_dot_without_trunc_with_triple();
+#endif
 #else
                     this->output(i, j).mask_and_send_dot_without_trunc();
 #endif
 #else
-#if PROTOCOL == 4 && BN2D_TRIPLES == 1 
+#if PROTOCOL == 4 && BN2D_TRIPLES == 1
+#if A2B_ONLINE_OPT == 1 && A2B_CONV_BAKE == 1 && DATTYPE == BITLENGTH
+                    this->output(i, j).mask_and_send_dot_with_triple_baked(bake_e);
+#else
                     this->output(i, j).mask_and_send_dot_with_triple();
+#endif
 #else
                     this->output(i, j).mask_and_send_dot();
 #endif
@@ -219,6 +239,9 @@ namespace simple_nn
 				}
 			}
 		}
+#if A2B_ONLINE_OPT == 1 && A2B_CONV_BAKE == 1 && DATTYPE == BITLENGTH
+        g_bake_batch_offset = 0;
+#endif
         T::communicate();
 		for (int n = 0; n < batch; n++) {
 			for (int c = 0; c < ch; c++) {
