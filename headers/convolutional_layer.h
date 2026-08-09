@@ -206,12 +206,12 @@ namespace simple_nn
             bake_bias_l.resize((size_t)oc * ohw);
             for (int i = 0; i < oc; ++i)
             {
-#if TRUNC_DELAYED == 0
+#if PUBLIC_WEIGHTS == 1
+                DATATYPE bl = SET_ALL_ZERO();  // public bias is a plain value and carries no mask
+#elif TRUNC_DELAYED == 0
                 DATATYPE bl = bias.data()[i].get_share().get_mask();
-#elif PUBLIC_WEIGHTS == 0
-                DATATYPE bl = bias.data()[i].mult_public(UINT_TYPE(1) << FRACTIONAL).get_share().get_mask();
 #else
-                DATATYPE bl = SET_ALL_ZERO();  // public bias carries no mask
+                DATATYPE bl = bias.data()[i].mult_public(UINT_TYPE(1) << FRACTIONAL).get_share().get_mask();
 #endif
                 for (int j = 0; j < ohw; ++j)
                     bake_bias_l[(size_t)i * ohw + j] = bl;

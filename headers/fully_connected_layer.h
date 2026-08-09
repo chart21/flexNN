@@ -98,12 +98,12 @@ namespace simple_nn
         // the EFFECTIVE bias mask (what add_bias will add) so the reshare bake can pre-compensate.
         std::vector<DATATYPE> bake_bias_l(this->output.cols());
         for (int i = 0; i < this->output.cols(); ++i)
-#if TRUNC_DELAYED == 0
+#if PUBLIC_WEIGHTS == 1
+            bake_bias_l[i] = SET_ALL_ZERO();  // public bias is a plain value and carries no mask
+#elif TRUNC_DELAYED == 0
             bake_bias_l[i] = b.data()[i].get_share().get_mask();
-#elif PUBLIC_WEIGHTS == 0
-            bake_bias_l[i] = b.data()[i].mult_public(UINT_TYPE(1) << FRACTIONAL).get_share().get_mask();
 #else
-            bake_bias_l[i] = SET_ALL_ZERO();  // public bias carries no mask
+            bake_bias_l[i] = b.data()[i].mult_public(UINT_TYPE(1) << FRACTIONAL).get_share().get_mask();
 #endif
         g_bake_bias_l = bake_bias_l.data();
         g_bake_bias_len = (uint64_t)this->output.cols();
