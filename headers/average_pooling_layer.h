@@ -75,7 +75,10 @@ namespace simple_nn
 	void AvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
 #if TRUNC_DELAYED == 1
-        if(delayed)
+        // A pool that divides absorbs a pending truncation into its division: one truncation and one
+        // round instead of two. (A pool fused into a ReLU never sees one - the ReLU has consumed it.)
+        const int fold_trunc = (TRUNC_APPROACH == 0 && delayed && !fused_into_relu) ? FRACTIONAL : 0;
+        if (delayed && fold_trunc == 0)
 #if TRUNC_APPROACH == 0
             trunc_pr_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
 #elif TRUNC_APPROACH == 1 || TRUNC_APPROACH == 4
@@ -86,6 +89,8 @@ namespace simple_nn
             trunc_exact_opt_in_place(const_cast<T*>(prev_out.data()), prev_out.size(),all_positive);
 #endif
         delayed = false;
+#else
+        const int fold_trunc = 0;
 #endif
         T::communicate();
         this->output.setZero();
@@ -140,7 +145,7 @@ namespace simple_nn
 							}
 						}
                         if (!fused_into_relu)
-                            prepare_prob_div(out[out_idx], denominator, fractional);
+                            prepare_prob_div(out[out_idx], denominator, fractional, fold_trunc);
 					}
 				}
 			}
