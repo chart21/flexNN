@@ -303,6 +303,7 @@ else
                 if (relu != nullptr) {
                     AvgPool2d<T>* avgpool = dynamic_cast<AvgPool2d<T>*>(this->net[l + 1]);
                     relu->set_fused_avgpool_denominator(avgpool->average_denominator());
+                    avgpool->set_fused_into_relu();
                 }
             }
         }

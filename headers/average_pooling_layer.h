@@ -19,10 +19,12 @@ namespace simple_nn
 		int kw;
 		int stride;
         int pad;
+        bool fused_into_relu = false;  // FUSE_RELU_AVG: the preceding ReLU performs this pool's division
 		// MatX<T> im_col;
 	public:
 		AvgPool2d(int kernel_size, int stride, int pad = 0);
 		int average_denominator() const;
+		void set_fused_into_relu() { fused_into_relu = true; }
 		void set_layer(const vector<int>& input_shape) override;
 		void forward(const MatX<T>& prev_out, bool is_training) override;
 		void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override;
@@ -137,17 +139,15 @@ namespace simple_nn
 								}
 							}
 						}
-#if FUSE_RELU_AVG == 0
-                        prepare_prob_div(out[out_idx], denominator, fractional);
-#endif
+                        if (!fused_into_relu)
+                            prepare_prob_div(out[out_idx], denominator, fractional);
 					}
 				}
 			}
 		}
         T::communicate();
-#if FUSE_RELU_AVG == 0
-        complete_prob_div(out, this->output.size(), denominator, fractional);
-#endif
+        if (!fused_into_relu)
+            complete_prob_div(out, this->output.size(), denominator, fractional);
 	}
 
     template<typename T>
