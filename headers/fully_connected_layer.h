@@ -66,6 +66,10 @@ namespace simple_nn
         if (this->is_first)
             remask_range(const_cast<T*>(prev_out.data()), (int)prev_out.size());
 #endif
+#if PUBLIC_WEIGHTS == 1
+        // See Conv2d::forward: only the first layer's input is the raw data-owner share (a-known truncation).
+        g_a_known_input = this->is_first ? 1 : 0;
+#endif
 #if PROTOCOL == 4 && FC_TRIPLES == 1 && PUBLIC_WEIGHTS == 0
         T::SetupFullyConnectedTriples(prev_out.data(), W.data(), this->output.data(), batch, in_feat, out_feat);
 #endif
