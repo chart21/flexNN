@@ -298,6 +298,11 @@ class ReducedNet : public SimpleNN<T>
             out = this->net[l]->output_shape();
 		
         }
+        vector<int> residual_sums;
+        for (size_t k = 0; k < this->identity_layers.size(); k++)
+            if (this->identity_layers_type[k] == "Identity_ADD")
+                residual_sums.push_back(this->identity_layers[k]);
+        this->mark_baked_relu_inputs(residual_sums);
 
 		// set Loss layer
 		if (loss != nullptr) {

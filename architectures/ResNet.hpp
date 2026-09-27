@@ -154,6 +154,14 @@ public:
         this->identity_layers.push_back(this->net.size());
         this->identity_layers_type.push_back(type);
     }
+
+    vector<int> residual_sums() const {
+        vector<int> at;
+        for (size_t k = 0; k < this->identity_layers.size(); k++)
+            if (this->identity_layers_type[k] == "Identity_ADD")
+                at.push_back(this->identity_layers[k]);
+        return at;
+    }
  
     void add_block(int in_channels, int intermediate_channels, bool identity_downsample, int stride, string option) {
         const int expansion = 4;
@@ -308,6 +316,7 @@ else
             }
         }
 #endif
+        this->mark_baked_relu_inputs(residual_sums());
 		// set Loss layer
 		if (loss != nullptr) {
 			loss->set_layer(this->net.back()->output_shape());
@@ -627,6 +636,7 @@ void compile(vector<int> input_shape, Optimizer* optim=nullptr, Loss<T>* loss=nu
                 
     
     }
+    this->mark_baked_relu_inputs(this->residual_sums());
     // set Loss layer
     if (loss != nullptr) {
         loss->set_layer(this->net.back()->output_shape());

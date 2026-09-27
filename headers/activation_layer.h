@@ -174,6 +174,7 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 	class ReLU : public Activation<T>
 	{
 	public:
+		bool input_baked = true;  // the input comes straight out of a conv/FC GEMM (see g_msb_input_baked)
 #if FUSE_RELU_AVG == 1 || FUSE_RELU_MAX == 1
 		ReLU(int denominator = 1) : Activation<T>(), denom(denominator) {}
 	void set_fused_avgpool_denominator(int denominator) { denom = denominator; }
@@ -196,7 +197,9 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 #if FUSE_RELU_AVG == 1
             curr_denom = denom;
 #endif
+            g_msb_input_baked = input_baked;
             RELU<m,k>(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data());
+            g_msb_input_baked = true;
         }
 
 		void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override

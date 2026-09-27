@@ -20,6 +20,16 @@ namespace simple_nn
 	{
 	protected:
 		vector<Layer<T>*> net;
+		// Only a conv/FC mask/send bakes the mask a ReLU's A2B expects; anything else (BatchNorm, pooling,
+		// a residual sum at one of the given indices) reaches it with another mask (see g_msb_input_baked).
+		void mark_baked_relu_inputs(const vector<int>& residual_sums = {})
+		{
+			for (int l = 0; l < (int)net.size(); l++)
+				if (auto* relu = dynamic_cast<ReLU<T>*>(net[l]))
+					relu->input_baked = l > 0 &&
+					                    std::find(residual_sums.begin(), residual_sums.end(), l) == residual_sums.end() &&
+					                    (net[l - 1]->type == LayerType::CONV2D || net[l - 1]->type == LayerType::LINEAR);
+		}
 		Optimizer* optim;
 		Loss<T>* loss;
 	public:
@@ -90,6 +100,7 @@ namespace simple_nn
             }
         }
 #endif
+        mark_baked_relu_inputs();
 
 		// set Loss layer
 		if (loss != nullptr) {
