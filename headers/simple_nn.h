@@ -211,15 +211,25 @@ namespace simple_nn
         T::communicate();
 #if JIT_VEC == 1
         MatXf output_float(output.rows()*(BASE_DIV), output.cols()); // 32x10
+#if PRINT_OUTPUT_HASH == 1
+        uint64_t out_hash = 1469598103934665603ULL;  // FNV-1a over the revealed fixed-point outputs
+#endif
         for (int i = 0; i < output.rows(); i++) {
             for (int j = 0; j < output.cols(); j++) {
                 alignas(sizeof(DATATYPE)) UINT_TYPE tmp[BASE_DIV];
                 output(i,j).complete_reveal_to_all(tmp);
+#if PRINT_OUTPUT_HASH == 1
+                for (int k = 0; k < BASE_DIV; k++)
+                    out_hash = (out_hash ^ (uint64_t)tmp[k]) * 1099511628211ULL;
+#endif
                 for (int k = 0; k < BASE_DIV; k++) {
                     output_float(i*(BASE_DIV)+k,j) = FloatFixedConverter<FLOATTYPE, INT_TYPE, UINT_TYPE, FRACTIONAL>::ufixed_to_float(tmp[k]);
                 }
         }
         } 
+#if PRINT_OUTPUT_HASH == 1
+        print("Output hash: %016llx\n", (unsigned long long)out_hash);
+#endif
 #else
         MatXf output_float(output.rows(), output.cols());
 
