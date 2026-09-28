@@ -35,3 +35,23 @@ void im2col(const T* data_im, int channels, int height, int width,
         }
     }
 }
+
+// im2col written transposed (out[j * channels * ksize^2 + c] = col[c][j]), for output pixels
+// [j_begin, j_end): the CPU GEMM's B operand without the separate transpose of the column matrix
+template <typename T>
+void im2col_transposed(const T* data_im, int channels, int height, int width, int ksize, int stride,
+                       int pad, T* out, int j_begin, int j_end)
+{
+    const int width_col = (width + 2 * pad - ksize) / stride + 1;
+    const int f = channels * ksize * ksize;
+    for (int j = j_begin; j < j_end; ++j) {
+        const int h = j / width_col, w = j % width_col;
+        T* row = out + (size_t)j * f;
+        int c = 0;
+        for (int c_im = 0; c_im < channels; ++c_im)
+            for (int h_offset = 0; h_offset < ksize; ++h_offset)
+                for (int w_offset = 0; w_offset < ksize; ++w_offset, ++c)
+                    row[c] = im2col_get_pixel(data_im, height, width, channels, h_offset + h * stride,
+                                              w_offset + w * stride, c_im, pad);
+    }
+}

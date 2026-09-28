@@ -24,6 +24,7 @@ namespace simple_nn
 		MatX<T> dkernel;
 		VecX<T> dbias;
 		MatX<T> im_col;
+		MatX<T> im_col_t;  // CPU GEMM: the column matrix transposed, ohw x (ic * kh * kw)
 		bool fuse_batchnorm_parameters;
 	public:
 #if PUBLIC_WEIGHTS == 1
@@ -126,7 +127,9 @@ namespace simple_nn
             dbias.resize(0);
         }
 
+#if USE_CUDA_GEMM != 0
 		im_col.resize(ic * kh * kw, ohw);
+#endif
 
 	    #if IS_TRAINING == 1	
 		int fan_in = kh * kw * ic;
@@ -223,12 +226,23 @@ namespace simple_nn
 		for (int n = 0; n < batch; n++) {
             auto C = this->output.data() + (oc * ohw) * n;
 		    const T* im = prev_out.data() + (ic * ihw) * n;
-			im2col(im, ic, ih, iw, kh, stride, pad, im_col.data());
             auto A = kernel.data();
-            #if USE_CUDA_GEMM == 0 //CPU uses transposed matrix
-            MatX<T> BM = im_col.transpose();
-            auto B = BM.data();
+            #if USE_CUDA_GEMM == 0 //CPU uses transposed matrix, built directly (on the GEMM threads)
+            if (im_col_t.rows() != ohw)
+                im_col_t.resize(ohw, ic * kh * kw);
+            T* B = im_col_t.data();
+#if ADDITIONAL_GEMM_THREADS > 0
+            if ((size_t)ohw * ic * kh * kw >= 16384) {
+                const int parts = ADDITIONAL_GEMM_THREADS + 1;
+                GemmPool::get().run([&](int t) {
+                    im2col_transposed(im, ic, ih, iw, kh, stride, pad, B, (int)((long)ohw * t / parts),
+                                      (int)((long)ohw * (t + 1) / parts));
+                });
+            } else
+#endif
+                im2col_transposed(im, ic, ih, iw, kh, stride, pad, B, 0, ohw);
             #else
+			im2col(im, ic, ih, iw, kh, stride, pad, im_col.data());
             auto B = im_col.data();
             #endif
             const int m = oc;
