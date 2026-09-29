@@ -107,10 +107,6 @@ namespace simple_nn
             std::copy(prev_out.data(), prev_out.data() + prev_out.size(), this->output.data());
             return;
 #endif
-#if PROTOCOL == 4 && BN2D_TRIPLES == 1 && PUBLIC_WEIGHTS == 0
-        T::SetupBatchNorm2DTriples(prev_out.data(), move_var.data(), this->output.data(), batch, ch, h, w);
-#endif
-
 #if TRUNC_DELAYED == 1
         if(delayed)
 #if TRUNC_APPROACH == 0
@@ -138,6 +134,24 @@ namespace simple_nn
     all_positive = false;
 #endif
 
+#if PROTOCOL == 4 && BN2D_TRIPLES == 1 && PUBLIC_WEIGHTS == 0
+        // The triple is taken over the masks of the product's operands (after the delayed truncation above, which
+        // re-masks the input). With A_KNOWN=0 it multiplies the FULL masks, and the operand is x - mu, whose mask
+        // includes mu's (the model owner's) mask: using x's mask left out lambda_s * lambda_mu = s * mu. With
+        // A_KNOWN=1 only the data owner's mask share enters, which mu does not change.
+#if A_KNOWN == 0
+        {
+            MatX<T> centered(prev_out.rows(), prev_out.cols());
+            for (int n = 0; n < batch; n++)
+                for (int c = 0; c < ch; c++)
+                    for (int j = 0; j < hw; j++)
+                        centered(c + ch * n, j) = prev_out(c + ch * n, j) - move_mu[c];
+            T::SetupBatchNorm2DTriples(centered.data(), move_var.data(), this->output.data(), batch, ch, h, w);
+        }
+#else
+        T::SetupBatchNorm2DTriples(prev_out.data(), move_var.data(), this->output.data(), batch, ch, h, w);
+#endif
+#endif
 
 			normalize_and_shift(prev_out, is_training);
 #endif
