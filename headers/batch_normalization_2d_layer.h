@@ -246,7 +246,8 @@ namespace simple_nn
 #endif
 #else
 #if BN_BAKE_SUPPORTED
-                    this->output(i, j).mask_and_send_dot_with_triple(i * hw + j);  // indexed: the bakes (NCHW index)
+                    // sequential triple retrieval (the loop runs in output order), the NCHW index for the bakes
+                    this->output(i, j).mask_and_send_dot_with_triple_baked(i * hw + j);
 #elif PROTOCOL == 4 && BN2D_TRIPLES == 1
                     this->output(i, j).mask_and_send_dot_with_triple();
 #else

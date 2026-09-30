@@ -38,7 +38,7 @@ namespace simple_nn
 #endif
 					                                  );
 					relu->input_baked = producer && !residual;
-#if A2B_CONV_BAKE_ACTIVE
+#if A2B_CONV_BAKE_ACTIVE && A2B_BAKE_RESIDUAL == 1
 					relu->input_residual = residual && l > 0 &&
 					                       (net[l - 1]->type == LayerType::CONV2D || net[l - 1]->type == LayerType::LINEAR);
 #endif

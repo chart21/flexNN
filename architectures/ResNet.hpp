@@ -245,7 +245,7 @@ else
             }
                 start_layer_stats(toString(this->net[l]->type), l);
                 /* start_timer(); */
-#if A2B_CONV_BAKE_ACTIVE
+#if A2B_CONV_BAKE_ACTIVE && A2B_BAKE_RESIDUAL == 1
                 // A residual sum at l + 1 whose partner is this conv/FC (the addend computed last): publish the other
                 // addend's masks, so that this layer's baked masks are lz - those (g_bake_res_l). With a downsample
                 // branch finishing at l + 1, this layer's output becomes the identity and the other addend is temp.
@@ -271,7 +271,7 @@ else
                 }
 #endif
                 this->net[l]->forward(out, is_training);
-#if A2B_CONV_BAKE_ACTIVE
+#if A2B_CONV_BAKE_ACTIVE && A2B_BAKE_RESIDUAL == 1
                 g_bake_res_l = nullptr;
 #endif
                 out = this->net[l]->output;
