@@ -61,6 +61,13 @@ namespace simple_nn
     template<typename T>
 	void Linear<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
+#if CHEETAH_CONV_EARLY_ACTIVE
+        if (g_mask_pass)
+        {
+            this->output.setZero();  // the mask-only forward: no conv input depends on it
+            return;
+        }
+#endif
 #if PROTOCOL == 4 && A_KNOWN == 0 && PUBLIC_WEIGHTS == 0 && BEAVER == 1
         // First layer: the raw data-owner input (m = 0 under SHARE_PREP) breaks the SecureML
         // truncation share-pair distribution - re-randomize it first (see remask_range in GEMM.hpp).

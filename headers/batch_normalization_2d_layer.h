@@ -21,6 +21,7 @@ namespace simple_nn
 		VecX<T> sum1;
 		VecX<T> sum2;
 	public:
+		bool bake_output = true;  // feeds a baked ReLU directly (see Conv2d::bake_output; BN_BAKE_SUPPORTED)
 		MatX<T> xhat;
 		MatX<T> dxhat;
 #if PUBLIC_WEIGHTS == 1
@@ -94,6 +95,13 @@ namespace simple_nn
     template<typename T>
 	void BatchNorm2d<T>::forward(const MatX<T>& prev_out, bool is_training)
     {
+#if CHEETAH_CONV_EARLY_ACTIVE
+        if (g_mask_pass)
+        {
+            this->output.setZero();  // the mask-only forward: a ReLU follows, whose outputs have committed masks
+            return;
+        }
+#endif
 
 #if IS_TRAINING == 1
 			calc_batch_mu(prev_out);
@@ -197,6 +205,17 @@ namespace simple_nn
         const auto* M = move_mu.data();
         const auto* V = move_var.data();
         #endif
+#if BN_BAKE_SUPPORTED
+        // like a conv's bias (convolutional_layer.h): beta is added after the multiplication, so the bakes pre-compensate
+        // its mask; only when this layer feeds a baked ReLU directly may it take the committed masks
+        std::vector<DATATYPE> bake_beta_l((size_t) ch * hw);
+        for (int c = 0; c < ch; c++)
+            for (int j = 0; j < hw; j++) bake_beta_l[(size_t) c * hw + j] = beta[c].get_share().get_mask();
+        g_bake_bias_l = bake_beta_l.data();
+        g_bake_bias_len = (uint64_t) ch * hw;
+        g_bake_batch_offset = 0;
+        g_conv_bake = bake_output;
+#endif
 		for (int n = 0; n < batch; n++) {
 			for (int c = 0; c < ch; c++) {
 				int i = c + ch * n;
@@ -226,7 +245,9 @@ namespace simple_nn
                     this->output(i, j).mask_and_send_dot_without_trunc();
 #endif
 #else
-#if PROTOCOL == 4 && BN2D_TRIPLES == 1
+#if BN_BAKE_SUPPORTED
+                    this->output(i, j).mask_and_send_dot_with_triple(i * hw + j);  // indexed: the bakes (NCHW index)
+#elif PROTOCOL == 4 && BN2D_TRIPLES == 1
                     this->output(i, j).mask_and_send_dot_with_triple();
 #else
                     this->output(i, j).mask_and_send_dot();
@@ -242,6 +263,11 @@ namespace simple_nn
 				}
 			}
 		}
+#if BN_BAKE_SUPPORTED
+        g_bake_bias_l = nullptr;
+        g_bake_bias_len = 0;
+        g_conv_bake = true;
+#endif
         T::communicate();
 		for (int n = 0; n < batch; n++) {
 			for (int c = 0; c < ch; c++) {

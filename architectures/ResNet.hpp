@@ -245,7 +245,35 @@ else
             }
                 start_layer_stats(toString(this->net[l]->type), l);
                 /* start_timer(); */
+#if A2B_CONV_BAKE_ACTIVE
+                // A residual sum at l + 1 whose partner is this conv/FC (the addend computed last): publish the other
+                // addend's masks, so that this layer's baked masks are lz - those (g_bake_res_l). With a downsample
+                // branch finishing at l + 1, this layer's output becomes the identity and the other addend is temp.
+                std::vector<DATATYPE> res_l;
+                if (current_phase != PHASE_INIT &&
+                    (this->net[l]->type == LayerType::CONV2D || this->net[l]->type == LayerType::LINEAR)) {
+                    const MatX<T>* other = nullptr;
+                    bool finish = false;
+                    for (size_t k = i; k < this->identity_layers.size() && this->identity_layers[k] == l + 1; k++) {
+                        if (this->identity_layers_type[k] == "Identity_OP_Finish")
+                            finish = true;
+                        else if (this->identity_layers_type[k] == "Identity_ADD") {
+                            other = finish ? &temp : &identity;
+                            break;
+                        }
+                    }
+                    if (other) {
+                        res_l.resize(other->size());
+                        for (Eigen::Index e = 0; e < other->size(); e++)
+                            res_l[e] = other->data()[e].get_share().get_mask();
+                        g_bake_res_l = res_l.data();
+                    }
+                }
+#endif
                 this->net[l]->forward(out, is_training);
+#if A2B_CONV_BAKE_ACTIVE
+                g_bake_res_l = nullptr;
+#endif
                 out = this->net[l]->output;
                 /* stop_timer(toString(this->net[l]->type)); */
                 stop_layer_stats(l);

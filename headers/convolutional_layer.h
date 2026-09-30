@@ -176,6 +176,15 @@ namespace simple_nn
     all_positive = false;
 #endif
 
+#if CHEETAH_CONV_EARLY_ACTIVE
+        if (g_mask_pass)
+        {
+            // the mask-only forward: the conv triple's inputs, for the conv triples that start before the OT phase;
+            // the output masks do not matter (the next conv's inputs come out of a ReLU, or the pass's check fails)
+            T::RecordConv2dInputs(prev_out.data(), kernel.data(), batch, ih, iw, ic, oc, kh, kw);
+            return;
+        }
+#endif
 #if PROTOCOL == 4 && CONV_TRIPLES == 1 && PUBLIC_WEIGHTS == 0
         T::SetupConv2dTriples(prev_out.data(), kernel.data(), this->output.data(), batch, ih , iw, ic, oc, kh, kw, pad, stride, oh, ow);
 #endif

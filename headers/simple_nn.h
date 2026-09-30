@@ -24,21 +24,37 @@ namespace simple_nn
 		// a residual sum at one of the given indices) reaches it with another mask (see g_msb_input_baked).
 		// The conv/FC right before such a ReLU produces its committed masks (bake_output); every other conv/FC draws
 		// fresh ones, so that each committed mask masks one value only (g_conv_bake).
+		// A BatchNorm with secret parameters re-masks its output like a conv (BatchNorm2d::bake_output); a residual sum's
+		// ReLU gets its mask from the partner computed last (input_residual; A2B bake only, see g_bake_res_l).
 		void mark_baked_relu_inputs(const vector<int>& residual_sums = {})
 		{
 			for (int l = 0; l < (int)net.size(); l++)
 				if (auto* relu = dynamic_cast<ReLU<T>*>(net[l]))
-					relu->input_baked = l > 0 &&
-					                    std::find(residual_sums.begin(), residual_sums.end(), l) == residual_sums.end() &&
-					                    (net[l - 1]->type == LayerType::CONV2D || net[l - 1]->type == LayerType::LINEAR);
+				{
+					const bool residual = std::find(residual_sums.begin(), residual_sums.end(), l) != residual_sums.end();
+					const bool producer = l > 0 && (net[l - 1]->type == LayerType::CONV2D || net[l - 1]->type == LayerType::LINEAR
+#if BN_BAKE_SUPPORTED
+					                                  || net[l - 1]->type == LayerType::BATCHNORM2D
+#endif
+					                                  );
+					relu->input_baked = producer && !residual;
+#if A2B_CONV_BAKE_ACTIVE
+					relu->input_residual = residual && l > 0 &&
+					                       (net[l - 1]->type == LayerType::CONV2D || net[l - 1]->type == LayerType::LINEAR);
+#endif
+				}
 			for (int l = 0; l < (int)net.size(); l++)
 			{
 				auto* next = l + 1 < (int)net.size() ? dynamic_cast<ReLU<T>*>(net[l + 1]) : nullptr;
-				const bool bake = next && next->input_baked && !next->fused_into_maxpool();
+				const bool bake = next && (next->input_baked || next->input_residual) && !next->fused_into_maxpool();
 				if (auto* conv = dynamic_cast<Conv2d<T>*>(net[l]))
 					conv->bake_output = bake;
 				else if (auto* fc = dynamic_cast<Linear<T>*>(net[l]))
 					fc->bake_output = bake;
+#if BN_BAKE_SUPPORTED
+				else if (auto* bn = dynamic_cast<BatchNorm2d<T>*>(net[l]))
+					bn->bake_output = bake;
+#endif
 			}
 		}
 		Optimizer* optim;
@@ -834,26 +850,32 @@ void SimpleNN<T>::complete_read_params()
         }
     }
 #endif
-#if A2B_MASK_PASS_ACTIVE
-			g_lin_counter = 0;  // the truncation masks restart with every forward (lin_mask)
-			// the preprocessing pass first runs the network over the masks alone (A2B_BAKE_MASK_PASS)
+#if MASK_FORWARD_ACTIVE
+			g_lin_counter = 0;  // the truncation masks and the ReLU slots restart with every forward
+			g_relu_base = 0;
+			// the preprocessing pass first runs the network over the masks alone (A2B_BAKE_MASK_PASS,
+			// CHEETAH_CONV_EARLY), on a copy: the first layer may re-mask its input in place
 			if (current_phase == PHASE_PRE)
 			{
 				if (n_batch != 1)
-					mask_pass_abort("the mask-only forward needs one batch");
-				a2b_mask_forward([&] { forward(test_XX, false); });
+					mask_pass_abort("needs one batch");
+				auto masks_in = test_XX;
+				mask_forward([&] { forward(masks_in, false); });
 			}
 #endif
 			forward(test_XX, false);
 #else
-#if A2B_MASK_PASS_ACTIVE
-			g_lin_counter = 0;  // the truncation masks restart with every forward (lin_mask)
-			// the preprocessing pass first runs the network over the masks alone (A2B_BAKE_MASK_PASS)
+#if MASK_FORWARD_ACTIVE
+			g_lin_counter = 0;  // the truncation masks and the ReLU slots restart with every forward
+			g_relu_base = 0;
+			// the preprocessing pass first runs the network over the masks alone (A2B_BAKE_MASK_PASS,
+			// CHEETAH_CONV_EARLY), on a copy: the first layer may re-mask its input in place
 			if (current_phase == PHASE_PRE)
 			{
 				if (n_batch != 1)
-					mask_pass_abort("the mask-only forward needs one batch");
-				a2b_mask_forward([&] { forward(test_X, false); });
+					mask_pass_abort("needs one batch");
+				auto masks_in = test_X;
+				mask_forward([&] { forward(masks_in, false); });
 			}
 #endif
 			forward(test_X, false);
