@@ -22,6 +22,8 @@ namespace simple_nn
 		vector<Layer<T>*> net;
 		// Only a conv/FC mask/send bakes the mask a ReLU's A2B expects; anything else (BatchNorm, pooling,
 		// a residual sum at one of the given indices) reaches it with another mask (see g_msb_input_baked).
+		// The conv/FC right before such a ReLU produces its committed masks (bake_output); every other conv/FC draws
+		// fresh ones, so that each committed mask masks one value only (g_conv_bake).
 		void mark_baked_relu_inputs(const vector<int>& residual_sums = {})
 		{
 			for (int l = 0; l < (int)net.size(); l++)
@@ -29,6 +31,15 @@ namespace simple_nn
 					relu->input_baked = l > 0 &&
 					                    std::find(residual_sums.begin(), residual_sums.end(), l) == residual_sums.end() &&
 					                    (net[l - 1]->type == LayerType::CONV2D || net[l - 1]->type == LayerType::LINEAR);
+			for (int l = 0; l < (int)net.size(); l++)
+			{
+				auto* next = l + 1 < (int)net.size() ? dynamic_cast<ReLU<T>*>(net[l + 1]) : nullptr;
+				const bool bake = next && next->input_baked && !next->fused_into_maxpool();
+				if (auto* conv = dynamic_cast<Conv2d<T>*>(net[l]))
+					conv->bake_output = bake;
+				else if (auto* fc = dynamic_cast<Linear<T>*>(net[l]))
+					fc->bake_output = bake;
+			}
 		}
 		Optimizer* optim;
 		Loss<T>* loss;

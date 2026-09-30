@@ -175,6 +175,15 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 	{
 	public:
 		bool input_baked = true;  // the input comes straight out of a conv/FC GEMM (see g_msb_input_baked)
+		// FUSE_RELU_MAX: a ReLU(-1) only passes its input on; the max pooling after it computes the ReLU
+		bool fused_into_maxpool() const
+		{
+#if FUSE_RELU_MAX == 1
+			return denom == -1;
+#else
+			return false;
+#endif
+		}
 #if FUSE_RELU_AVG == 1 || FUSE_RELU_MAX == 1
 		ReLU(int denominator = 1) : Activation<T>(), denom(denominator) {}
 	void set_fused_avgpool_denominator(int denominator) { denom = denominator; }

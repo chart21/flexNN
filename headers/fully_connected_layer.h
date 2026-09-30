@@ -15,6 +15,7 @@ namespace simple_nn
 		MatX<T> dW;
 		RowVecX<T> db;
 	public:
+		bool bake_output = true;  // feeds a baked ReLU directly (see Conv2d::bake_output)
 #if PUBLIC_WEIGHTS == 1
 		MatX<UINT_TYPE> W;
 		RowVecX<UINT_TYPE> b;
@@ -108,6 +109,7 @@ namespace simple_nn
         g_bake_bias_l = bake_bias_l.data();
         g_bake_bias_len = (uint64_t)this->output.cols();
 #endif
+        g_conv_bake = bake_output;
         for (int n = 0; n < batch; n++) {
 
             const auto W = this->W.data();
@@ -117,6 +119,7 @@ namespace simple_nn
             prepare_Matrix_Vector_Product(W, A, C, this->W.rows(), this->W.cols());
         }
         g_bake_batch_offset = 0;
+        g_conv_bake = true;
 #if PROTOCOL == 4 && ROT_PREPROCESSING_OPT == 1 && \
     ((RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1) || A2B_CONV_BAKE_ACTIVE)
         g_bake_bias_l = nullptr;

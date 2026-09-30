@@ -27,6 +27,7 @@ namespace simple_nn
 		MatX<T> im_col_t;  // CPU GEMM: the column matrix transposed, ohw x (ic * kh * kw)
 		bool fuse_batchnorm_parameters;
 	public:
+		bool bake_output = true;  // feeds a baked ReLU directly: masks from the A2B bake (g_conv_bake, set in compile)
 #if PUBLIC_WEIGHTS == 1
         MatX<UINT_TYPE> kernel;
         VecX<UINT_TYPE> bias;
@@ -223,6 +224,7 @@ namespace simple_nn
             g_bake_bias_len = (uint64_t)oc * ohw;
         }
 #endif
+        g_conv_bake = bake_output;
 		for (int n = 0; n < batch; n++) {
             auto C = this->output.data() + (oc * ohw) * n;
 		    const T* im = prev_out.data() + (ic * ihw) * n;
@@ -252,6 +254,7 @@ namespace simple_nn
             prepare_GEMM(A, B, C, m, p, f,true);
         }
         g_bake_batch_offset = 0;
+        g_conv_bake = true;
 #if PROTOCOL == 4 && ROT_PREPROCESSING_OPT == 1 && \
     ((RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1) || A2B_CONV_BAKE_ACTIVE)
         g_bake_bias_l = nullptr;
