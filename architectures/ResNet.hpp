@@ -250,7 +250,7 @@ else
                 /* stop_timer(toString(this->net[l]->type)); */
                 stop_layer_stats(l);
             #if IS_TRAINING == 0
-            if (l > 0)
+            if (l > 0 && !g_mask_pass)  // the mask-only forward (A2B_BAKE_MASK_PASS) is followed by the real one
                 delete this->net[l - 1];
             #endif
             }

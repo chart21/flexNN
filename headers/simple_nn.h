@@ -199,7 +199,8 @@ namespace simple_nn
             {
                 net[l]->forward(net[l - 1]->output, is_training); 
 #if IS_TRAINING == 0
-                delete net[l - 1];
+                if (!g_mask_pass)  // the mask-only forward (A2B_BAKE_MASK_PASS) is followed by the real one
+                    delete net[l - 1];
 #endif
 		    }
 #if PRINT_TIMINGS == 1
@@ -833,8 +834,28 @@ void SimpleNN<T>::complete_read_params()
         }
     }
 #endif
+#if A2B_MASK_PASS_ACTIVE
+			g_lin_counter = 0;  // the truncation masks restart with every forward (lin_mask)
+			// the preprocessing pass first runs the network over the masks alone (A2B_BAKE_MASK_PASS)
+			if (current_phase == PHASE_PRE)
+			{
+				if (n_batch != 1)
+					mask_pass_abort("the mask-only forward needs one batch");
+				a2b_mask_forward([&] { forward(test_XX, false); });
+			}
+#endif
 			forward(test_XX, false);
 #else
+#if A2B_MASK_PASS_ACTIVE
+			g_lin_counter = 0;  // the truncation masks restart with every forward (lin_mask)
+			// the preprocessing pass first runs the network over the masks alone (A2B_BAKE_MASK_PASS)
+			if (current_phase == PHASE_PRE)
+			{
+				if (n_batch != 1)
+					mask_pass_abort("the mask-only forward needs one batch");
+				a2b_mask_forward([&] { forward(test_X, false); });
+			}
+#endif
 			forward(test_X, false);
 #endif
 			classify(net.back()->output, classified);
