@@ -16,6 +16,7 @@ namespace simple_nn
 		RowVecX<T> db;
 	public:
 		bool bake_output = true;  // feeds a baked ReLU directly (see Conv2d::bake_output)
+		int residual_producer_k = -1;  // the output is the other addend of residual sum k (g_res_producer_k)
 #if PUBLIC_WEIGHTS == 1
 		MatX<UINT_TYPE> W;
 		RowVecX<UINT_TYPE> b;
@@ -117,6 +118,7 @@ namespace simple_nn
         g_bake_bias_len = (uint64_t)this->output.cols();
 #endif
         g_conv_bake = bake_output;
+        g_res_producer_k = residual_producer_k;
         for (int n = 0; n < batch; n++) {
 
             const auto W = this->W.data();
@@ -127,6 +129,7 @@ namespace simple_nn
         }
         g_bake_batch_offset = 0;
         g_conv_bake = true;
+        g_res_producer_k = -1;
 #if PROTOCOL == 4 && ROT_PREPROCESSING_OPT == 1 && \
     ((RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1) || A2B_CONV_BAKE_ACTIVE)
         g_bake_bias_l = nullptr;

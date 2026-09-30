@@ -176,6 +176,8 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 	public:
 		bool input_baked = true;  // the input comes straight out of a conv/FC GEMM (see g_msb_input_baked)
 		bool input_residual = false;  // the input is a residual sum whose partner conv/FC bakes (g_msb_input_residual)
+		int residual_k = -1;  // that residual sum's number (g_residual_k)
+		int identity_k = -1;  // this ReLU's output is the other addend of residual sum identity_k (g_relu_identity_k)
 		// FUSE_RELU_MAX: a ReLU(-1) only passes its input on; the max pooling after it computes the ReLU
 		bool fused_into_maxpool() const
 		{
@@ -209,9 +211,13 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 #endif
             g_msb_input_baked = input_baked;
             g_msb_input_residual = input_residual;
+            g_residual_k = residual_k;
+            g_relu_identity_k = identity_k;
             RELU<m,k>(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data());
             g_msb_input_baked = true;
             g_msb_input_residual = false;
+            g_residual_k = -1;
+            g_relu_identity_k = -1;
         }
 
 		void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override

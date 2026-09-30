@@ -162,6 +162,54 @@ public:
                 at.push_back(this->identity_layers[k]);
         return at;
     }
+
+    // A2B bake, residual sums (after mark_baked_relu_inputs): number the sums and mark each one's other addend's
+    // producer (the partner is the layer computed last), whose masks P1 then commits as well (see g_residual_sums).
+    // Replays the Identity_* events of forward() on layer indices.
+    void mark_residual_producers() {
+#if A2B_CONV_BAKE_ACTIVE && A2B_BAKE_RESIDUAL == 1
+        int out_src = -1, identity_src = -1, temp_src = -1, k = 0;  // the layer whose output each holds (-1: input)
+        size_t i = 0;
+        for (int l = 0; l < (int)this->net.size(); l++) {
+            for (; i < this->identity_layers.size() && this->identity_layers[i] == l; i++) {
+                const string& type = this->identity_layers_type[i];
+                if (type == "Identity_Store")
+                    identity_src = out_src;
+                else if (type == "Identity_OP_Start") {
+                    temp_src = out_src;
+                    out_src = identity_src;
+                }
+                else if (type == "Identity_OP_Finish") {
+                    identity_src = out_src;
+                    out_src = temp_src;
+                }
+                else if (type == "Identity_ADD") {
+                    auto* relu = dynamic_cast<ReLU<T>*>(this->net[l]);
+                    const int other = identity_src == l - 1 ? out_src : identity_src;
+                    if (relu && relu->input_residual && other >= 0 && other != l - 1) {
+                        relu->residual_k = k;
+                        int producer = 0;
+                        if (auto* conv = dynamic_cast<Conv2d<T>*>(this->net[other]); conv && !conv->bake_output) {
+                            conv->residual_producer_k = k;
+                            producer = 1;
+                        }
+                        else if (auto* fc = dynamic_cast<Linear<T>*>(this->net[other]); fc && !fc->bake_output) {
+                            fc->residual_producer_k = k;
+                            producer = 1;
+                        }
+                        else if (auto* prelu = dynamic_cast<ReLU<T>*>(this->net[other]); prelu && !prelu->fused_into_maxpool()) {
+                            prelu->identity_k = k;
+                            producer = 2;
+                        }
+                        residual_sum(k).producer = producer;
+                    }
+                    k++;
+                }
+            }
+            out_src = l;
+        }
+#endif
+    }
  
     void add_block(int in_channels, int intermediate_channels, bool identity_downsample, int stride, string option) {
         const int expansion = 4;
@@ -267,12 +315,16 @@ else
                         for (Eigen::Index e = 0; e < other->size(); e++)
                             res_l[e] = other->data()[e].get_share().get_mask();
                         g_bake_res_l = res_l.data();
+                        if (l + 1 < (int)this->net.size())
+                            if (auto* relu = dynamic_cast<ReLU<T>*>(this->net[l + 1]))
+                                g_bake_res_k = relu->residual_k;
                     }
                 }
 #endif
                 this->net[l]->forward(out, is_training);
 #if A2B_CONV_BAKE_ACTIVE && A2B_BAKE_RESIDUAL == 1
                 g_bake_res_l = nullptr;
+                g_bake_res_k = -1;
 #endif
                 out = this->net[l]->output;
                 /* stop_timer(toString(this->net[l]->type)); */
@@ -345,6 +397,7 @@ else
         }
 #endif
         this->mark_baked_relu_inputs(residual_sums());
+        mark_residual_producers();
 		// set Loss layer
 		if (loss != nullptr) {
 			loss->set_layer(this->net.back()->output_shape());
@@ -665,6 +718,7 @@ void compile(vector<int> input_shape, Optimizer* optim=nullptr, Loss<T>* loss=nu
     
     }
     this->mark_baked_relu_inputs(this->residual_sums());
+    this->mark_residual_producers();
     // set Loss layer
     if (loss != nullptr) {
         loss->set_layer(this->net.back()->output_shape());

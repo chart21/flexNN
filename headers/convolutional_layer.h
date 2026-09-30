@@ -28,6 +28,7 @@ namespace simple_nn
 		bool fuse_batchnorm_parameters;
 	public:
 		bool bake_output = true;  // feeds a baked ReLU directly: masks from the A2B bake (g_conv_bake, set in compile)
+		int residual_producer_k = -1;  // the output is the other addend of residual sum k (g_res_producer_k)
 #if PUBLIC_WEIGHTS == 1
         MatX<UINT_TYPE> kernel;
         VecX<UINT_TYPE> bias;
@@ -234,6 +235,7 @@ namespace simple_nn
         }
 #endif
         g_conv_bake = bake_output;
+        g_res_producer_k = residual_producer_k;
 		for (int n = 0; n < batch; n++) {
             auto C = this->output.data() + (oc * ohw) * n;
 		    const T* im = prev_out.data() + (ic * ihw) * n;
@@ -264,6 +266,7 @@ namespace simple_nn
         }
         g_bake_batch_offset = 0;
         g_conv_bake = true;
+        g_res_producer_k = -1;
 #if PROTOCOL == 4 && ROT_PREPROCESSING_OPT == 1 && \
     ((RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1) || A2B_CONV_BAKE_ACTIVE)
         g_bake_bias_l = nullptr;
