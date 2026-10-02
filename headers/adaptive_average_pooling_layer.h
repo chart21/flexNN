@@ -18,8 +18,18 @@ namespace simple_nn
         int kernel_h;
         int kernel_w;
 
+        bool fused_into_relu = false;  // TRUNC_APPROACH 1 (2PC): the preceding ReLU's TS1 divides (uniform kernels)
+
     public:
         AdaptiveAvgPool2d(int target_oh, int target_ow);
+        void set_fused_into_relu() { fused_into_relu = true; }
+        // the common denominator if every output averages kernel_h x kernel_w inputs (0 otherwise)
+        int uniform_denominator() const
+        {
+            return (ih == oh * stride_h && iw == ow * stride_w && kernel_h == stride_h && kernel_w == stride_w)
+                       ? kernel_h * kernel_w
+                       : 0;
+        }
         void set_layer(const std::vector<int>& input_shape) override;
         void forward(const MatX<T>& prev_out, bool is_training) override;
         void backward(const MatX<T>& prev_out, MatX<T>& prev_delta) override;
@@ -103,6 +113,11 @@ void AdaptiveAvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
         }
     }
 
+if (fused_into_relu)  // the ReLU divided already: the sums are the averages
+{
+    delete[] denominators;
+    return;
+}
 #if AVG1_OPT == 1
 if(all_one)
 {

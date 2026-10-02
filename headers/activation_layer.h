@@ -209,6 +209,18 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 #if FUSE_RELU_AVG == 1
             curr_denom = denom;
 #endif
+#if FUSE_RELU_AVG == 1 && PROTOCOL == 4 && TRUNC_APPROACH == 1
+            if (g_pending_denom > 1)  // an average pooling before this ReLU left its division to the ReLU's TS1
+            {
+                if (denom > 1)
+                {
+                    fprintf(stderr, "TRUNC_APPROACH 1 (2PC): a ReLU between two average poolings\n");
+                    std::abort();
+                }
+                curr_denom = g_pending_denom;
+                g_pending_denom = 1;
+            }
+#endif
             g_msb_input_baked = input_baked;
             g_msb_input_residual = input_residual;
             g_residual_k = residual_k;

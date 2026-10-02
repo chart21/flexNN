@@ -57,6 +57,33 @@ namespace simple_nn
 #endif
 			}
 		}
+		// FUSE_RELU_AVG: a ReLU followed by an average pooling divides for it (ReLU::set_fused_avgpool_denominator)
+		void fuse_relu_pools()
+		{
+#if FUSE_RELU_AVG == 1
+			for (int l = 0; l + 1 < net.size(); l++) {
+				if (net[l]->type == LayerType::ACTIVATION && net[l + 1]->type == LayerType::AVGPOOL2D) {
+					ReLU<T>* relu = dynamic_cast<ReLU<T>*>(net[l]);
+					if (relu != nullptr) {
+						AvgPool2d<T>* avgpool = dynamic_cast<AvgPool2d<T>*>(net[l + 1]);
+						relu->set_fused_avgpool_denominator(avgpool->average_denominator());
+						avgpool->set_fused_into_relu();
+					}
+				}
+#if PROTOCOL == 4 && TRUNC_APPROACH == 1
+				// TS1 (2PC): an adaptive pooling with uniform kernels after a ReLU is divided by the ReLU's TS1 too
+				if (net[l]->type == LayerType::ACTIVATION && net[l + 1]->type == LayerType::ADAPTIVEAVGPOOL2D) {
+					ReLU<T>* relu = dynamic_cast<ReLU<T>*>(net[l]);
+					auto* pool = dynamic_cast<AdaptiveAvgPool2d<T>*>(net[l + 1]);
+					if (relu != nullptr && pool != nullptr && pool->uniform_denominator() > 1) {
+						relu->set_fused_avgpool_denominator(pool->uniform_denominator());
+						pool->set_fused_into_relu();
+					}
+				}
+#endif
+			}
+#endif
+		}
 		Optimizer* optim;
 		Loss<T>* loss;
 	public:
@@ -115,18 +142,7 @@ namespace simple_nn
 			else net[l]->set_layer(net[l - 1]->output_shape());
 		}
 
-#if FUSE_RELU_AVG == 1
-        for (int l = 0; l + 1 < net.size(); l++) {
-            if (net[l]->type == LayerType::ACTIVATION && net[l + 1]->type == LayerType::AVGPOOL2D) {
-                ReLU<T>* relu = dynamic_cast<ReLU<T>*>(net[l]);
-                if (relu != nullptr) {
-                    AvgPool2d<T>* avgpool = dynamic_cast<AvgPool2d<T>*>(net[l + 1]);
-                    relu->set_fused_avgpool_denominator(avgpool->average_denominator());
-                    avgpool->set_fused_into_relu();
-                }
-            }
-        }
-#endif
+        fuse_relu_pools();
         mark_baked_relu_inputs();
 
 		// set Loss layer
@@ -257,6 +273,13 @@ namespace simple_nn
         } 
 #if PRINT_OUTPUT_HASH == 1
         print("Output hash: %016llx\n", (unsigned long long)out_hash);
+        if (getenv("PRINT_LOGITS"))  // debugging: the first images' logits
+            for (int i = 0; i < std::min<int>(3, output_float.rows()); i++)
+            {
+                std::string l;
+                for (int j = 0; j < output_float.cols(); j++) l += std::to_string(output_float(i, j)) + " ";
+                print("logits %d: %s\n", i, l.c_str());
+            }
 #endif
 #else
         MatXf output_float(output.rows(), output.cols());

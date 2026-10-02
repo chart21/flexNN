@@ -77,12 +77,26 @@ namespace simple_nn
 #if TRUNC_DELAYED == 1 && TS1_FUSED_ACTIVE
         // TS_Mix (2PC): the division truncates its own bits only (probabilistically); a pending truncation stays
         // pending - the averages are still at scale 2^(2 FRACTIONAL) - for the next ReLU's TS1. One truncation, as
-        // with the fold below.
+        // with the fold below. TRUNC_APPROACH 1: the pool only sums and the next ReLU's TS1 divides (g_pending_denom;
+        // a BatchNorm in between passes its input on with FUSE_CONV_BN).
         const int fold_trunc = 0;
+#if TRUNC_APPROACH == 1 && FUSE_RELU_AVG == 1
+        const bool pend = delayed && !fused_into_relu;
+#if FUSE_CONV_BN == 0
+        if (pend)
+        {
+            fprintf(stderr, "TRUNC_APPROACH 1 (2PC): an average pooling on a delayed value needs FUSE_CONV_BN\n");
+            std::abort();
+        }
+#endif
+#else
+        const bool pend = false;
+#endif
 #elif TRUNC_DELAYED == 1
         // A pool that divides absorbs a pending truncation into its division: one truncation and one
         // round instead of two. (A pool fused into a ReLU never sees one - the ReLU has consumed it.)
         const int fold_trunc = (TRUNC_APPROACH == 0 && delayed && !fused_into_relu) ? FRACTIONAL : 0;
+        const bool pend = false;
         if (delayed && fold_trunc == 0)
 #if TRUNC_APPROACH == 0
             trunc_pr_in_place(const_cast<T*>(prev_out.data()), prev_out.size());
@@ -96,6 +110,7 @@ namespace simple_nn
         delayed = false;
 #else
         const int fold_trunc = 0;
+        const bool pend = false;
 #endif
         T::communicate();
         this->output.setZero();
@@ -149,15 +164,19 @@ namespace simple_nn
 								}
 							}
 						}
-                        if (!fused_into_relu)
+                        if (!fused_into_relu && !pend)
                             prepare_prob_div(out[out_idx], denominator, fractional, fold_trunc);
 					}
 				}
 			}
 		}
         T::communicate();
-        if (!fused_into_relu)
+        if (!fused_into_relu && !pend)
             complete_prob_div(out, this->output.size(), denominator, fractional);
+#if FUSE_RELU_AVG == 1 && PROTOCOL == 4 && TRUNC_APPROACH == 1
+        if (pend)
+            g_pending_denom = denominator;
+#endif
 	}
 
     template<typename T>

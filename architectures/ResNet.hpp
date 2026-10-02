@@ -405,18 +405,7 @@ identity_in_delayed = delayed;
             out = this->net[l]->output_shape();
 		
         }
-#if FUSE_RELU_AVG == 1
-        for (int l = 0; l + 1 < this->net.size(); l++) {
-            if (this->net[l]->type == LayerType::ACTIVATION && this->net[l + 1]->type == LayerType::AVGPOOL2D) {
-                ReLU<T>* relu = dynamic_cast<ReLU<T>*>(this->net[l]);
-                if (relu != nullptr) {
-                    AvgPool2d<T>* avgpool = dynamic_cast<AvgPool2d<T>*>(this->net[l + 1]);
-                    relu->set_fused_avgpool_denominator(avgpool->average_denominator());
-                    avgpool->set_fused_into_relu();
-                }
-            }
-        }
-#endif
+        this->fuse_relu_pools();
         this->mark_baked_relu_inputs(residual_sums());
         mark_residual_producers();
 		// set Loss layer
@@ -738,6 +727,7 @@ void compile(vector<int> input_shape, Optimizer* optim=nullptr, Loss<T>* loss=nu
                 
     
     }
+    this->fuse_relu_pools();
     this->mark_baked_relu_inputs(this->residual_sums());
     this->mark_residual_producers();
     // set Loss layer
