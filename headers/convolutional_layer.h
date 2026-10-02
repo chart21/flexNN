@@ -156,7 +156,19 @@ namespace simple_nn
         g_a_known_input = this->is_first ? 1 : 0;
 #endif
         T::communicate();
+#if ADDITIONAL_GEMM_THREADS > 0
+        {  // the outputs are many (multi-batch: all lanes): zero them on the GEMM threads
+            T* out = this->output.data();
+            const size_t n_out = (size_t) this->output.size();
+            constexpr int parts = ADDITIONAL_GEMM_THREADS + 1;
+            GemmPool::get().run([&](int t) {
+                for (size_t i = n_out * t / parts; i < n_out * (t + 1) / parts; i++)
+                    out[i] = T(0);
+            });
+        }
+#else
         this->output.setZero();
+#endif
 #if TRUNC_DELAYED == 1
         
         if(delayed)
@@ -214,10 +226,10 @@ namespace simple_nn
     ((RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1) || A2B_CONV_BAKE_ACTIVE)
         // see fully_connected_layer.h: publish the effective bias mask (expanded per output value,
         // bias repeats per channel) so the reshare bake can pre-compensate the post-GEMM bias add
-        std::vector<DATATYPE> bake_bias_l;
+        std::vector<DATATYPE> bake_bias_l;  // one mask per channel, repeated ohw times (g_bake_bias_rep)
         if (use_bias)
         {
-            bake_bias_l.resize((size_t)oc * ohw);
+            bake_bias_l.resize((size_t)oc);
             for (int i = 0; i < oc; ++i)
             {
 #if PUBLIC_WEIGHTS == 1
@@ -227,11 +239,11 @@ namespace simple_nn
 #else
                 DATATYPE bl = bias.data()[i].mult_public(UINT_TYPE(1) << FRACTIONAL).get_share().get_mask();
 #endif
-                for (int j = 0; j < ohw; ++j)
-                    bake_bias_l[(size_t)i * ohw + j] = bl;
+                bake_bias_l[(size_t)i] = bl;
             }
             g_bake_bias_l = bake_bias_l.data();
             g_bake_bias_len = (uint64_t)oc * ohw;
+            g_bake_bias_rep = (uint64_t)ohw;
         }
 #endif
         g_conv_bake = bake_output;
@@ -240,6 +252,15 @@ namespace simple_nn
             auto C = this->output.data() + (oc * ohw) * n;
 		    const T* im = prev_out.data() + (ic * ihw) * n;
             auto A = kernel.data();
+#if GEMM_FAST_CONV_GPU && USE_CUDA_GEMM == 0
+            // GEMM_FAST_GPU: the product with its column matrix built on the GPU (only the input travels); the
+            // prepare_GEMM below then only masks and sends
+            if (gemm_fast::accumulate_conv(A, im, C, oc, ic, ih, iw, kh, stride, pad)) {
+                g_bake_batch_offset = (uint64_t)(oc * ohw) * n;
+                prepare_GEMM(A, (T*) nullptr, C, oc, ohw, (int) kernel.cols(), true);
+                continue;
+            }
+#endif
             #if USE_CUDA_GEMM == 0 //CPU uses transposed matrix, built directly (on the GEMM threads)
             if (im_col_t.rows() != ohw)
                 im_col_t.resize(ohw, ic * kh * kw);
@@ -271,6 +292,7 @@ namespace simple_nn
     ((RESHARE_OPT == 1 && RESHARE_OPT_SIM == 1) || A2B_CONV_BAKE_ACTIVE)
         g_bake_bias_l = nullptr;
         g_bake_bias_len = 0;
+        g_bake_bias_rep = 1;
 #endif
 #endif
     T::communicate();
@@ -291,10 +313,20 @@ if(use_bias)
 {
     auto C = this->output.data();
     auto B = bias.data();
+#if ADDITIONAL_GEMM_THREADS > 0
+    constexpr int parts = ADDITIONAL_GEMM_THREADS + 1;
+    const int rows = batch * oc;  // (image, channel) rows of ohw outputs, on the GEMM threads
+    GemmPool::get().run([&](int t) {
+        for (int r = rows * t / parts; r < rows * (t + 1) / parts; ++r)
+            for (int j = 0; j < ohw; ++j)
+                add_bias(C[(size_t)r * ohw + j], B[r % oc]);
+    });
+#else
 		for (int n = 0; n < batch; n++)
             for(int i = 0; i < oc; ++i)
                 for(int j = 0; j < ohw; ++j)
                     add_bias(C[n*oc*ohw + i*ohw + j], B[i]);
+#endif
 }            
             
             
