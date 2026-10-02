@@ -74,7 +74,12 @@ namespace simple_nn
     template<typename T>
 	void AvgPool2d<T>::forward(const MatX<T>& prev_out, bool is_training)
 	{
-#if TRUNC_DELAYED == 1
+#if TRUNC_DELAYED == 1 && TS1_FUSED_ACTIVE
+        // TS_Mix (2PC): the division truncates its own bits only (probabilistically); a pending truncation stays
+        // pending - the averages are still at scale 2^(2 FRACTIONAL) - for the next ReLU's TS1. One truncation, as
+        // with the fold below.
+        const int fold_trunc = 0;
+#elif TRUNC_DELAYED == 1
         // A pool that divides absorbs a pending truncation into its division: one truncation and one
         // round instead of two. (A pool fused into a ReLU never sees one - the ReLU has consumed it.)
         const int fold_trunc = (TRUNC_APPROACH == 0 && delayed && !fused_into_relu) ? FRACTIONAL : 0;

@@ -251,6 +251,13 @@ public:
         MatX<T> identity = X;
         MatX<T> out = X;
         MatX<T> temp = X;
+#if TRUNC_DELAYED == 1
+        // The block input as it is, for a downsample branch: a linear layer on the unscaled input gives the scale of
+        // the main branch's pending output directly (instead of truncating identity * 2^FRACTIONAL first)
+        MatX<T> identity_in = X;
+        bool identity_in_delayed = false;
+        bool temp_delayed = false;  // the main branch's pending truncation while the downsample branch runs
+#endif
         int i = 0;
 		for (int l = 0; l < this->net.size(); l++) {
             if(this->identity_layers.size() != 0 && i < this->identity_layers.size()) {
@@ -269,17 +276,31 @@ else
         identity.data()[i] = identity.data()[i].mult_public(UINT_TYPE(1) << FRACTIONAL);
     }
 }
+identity_in = out;
+identity_in_delayed = delayed;
 #endif
                         }
                         else if(this->identity_layers_type[i] == "Identity_OP_Start") {
                             //network starts operating on identity, storing last output
                             temp = out; 
+#if TRUNC_DELAYED == 1
+                            temp_delayed = delayed;
+                            out = identity_in;  // the downsample conv's output has the main branch's scale
+                            delayed = identity_in_delayed;
+#else
                             out = identity;
+#endif
                         }
                         else if(this->identity_layers_type[i] == "Identity_OP_Finish") {
                             //network finished processing identity, loading back last output
                             identity = out;
                             out = temp;
+#if TRUNC_DELAYED == 1
+                            // back to the main branch's state: with the downsample branch at the block's start
+                            // (Cheetah_ResNet) the main branch has not computed anything yet, and its first conv must
+                            // not truncate the block input
+                            delayed = temp_delayed;
+#endif
                         }
                         else if(this->identity_layers_type[i] == "Identity_ADD") {
                             out += identity;
