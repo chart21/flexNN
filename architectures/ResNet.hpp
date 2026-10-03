@@ -211,6 +211,37 @@ public:
 #endif
     }
  
+    // The layers whose outputs the residual sums read (replaying the Identity_* events of forward() on layer indices,
+    // as mark_residual_producers): their ReLUs stay revealed to both parties (mark_one_way_relus)
+    vector<int> residual_operands() const {
+        vector<int> ops;
+        int out_src = -1, identity_src = -1, temp_src = -1;
+        size_t i = 0;
+        for (int l = 0; l <= (int)this->net.size(); l++) {
+            for (; i < this->identity_layers.size() && this->identity_layers[i] == l; i++) {
+                const string& type = this->identity_layers_type[i];
+                if (type == "Identity_Store")
+                    identity_src = out_src;
+                else if (type == "Identity_OP_Start") {
+                    temp_src = out_src;
+                    out_src = identity_src;
+                }
+                else if (type == "Identity_OP_Finish") {
+                    identity_src = out_src;
+                    out_src = temp_src;
+                }
+                else if (type == "Identity_ADD" || type == "Identity_CAT" || type == "Identity_MUL") {
+                    ops.push_back(out_src);
+                    ops.push_back(identity_src);
+                }
+                else
+                    ops.push_back(out_src), ops.push_back(identity_src);  // unknown event: keep both revealed
+            }
+            out_src = l;
+        }
+        return ops;
+    }
+
     void add_block(int in_channels, int intermediate_channels, bool identity_downsample, int stride, string option) {
         const int expansion = 4;
         this->add_identity_layer("Identity_Store");
@@ -408,6 +439,7 @@ identity_in_delayed = delayed;
         this->fuse_relu_pools();
         this->mark_baked_relu_inputs(residual_sums());
         mark_residual_producers();
+        this->mark_one_way_relus(residual_operands());
 		// set Loss layer
 		if (loss != nullptr) {
 			loss->set_layer(this->net.back()->output_shape());
@@ -730,6 +762,7 @@ void compile(vector<int> input_shape, Optimizer* optim=nullptr, Loss<T>* loss=nu
     this->fuse_relu_pools();
     this->mark_baked_relu_inputs(this->residual_sums());
     this->mark_residual_producers();
+    this->mark_one_way_relus(this->residual_operands());
     // set Loss layer
     if (loss != nullptr) {
         loss->set_layer(this->net.back()->output_shape());

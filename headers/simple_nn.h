@@ -57,6 +57,29 @@ namespace simple_nn
 #endif
 			}
 		}
+		// RELU_ONE_WAY_ACTIVE (UC2): a ReLU whose output only convs / FC layers read, directly or through average
+		// poolings, reveals its masked output to P0 only (ReLU::out_one_way): the model owner computes those layers'
+		// public part, and P1, which neither knows the weights nor reads the activations' masked values (its share of a
+		// conv / FC output is its prescribed triple share), needs nothing. add_operands: the layers whose outputs a
+		// residual sum reads (they stay revealed to both parties)
+		void mark_one_way_relus(const vector<int>& add_operands = {})
+		{
+#if RELU_ONE_WAY_ACTIVE
+			for (int l = 0; l < (int)net.size(); l++)
+				if (auto* relu = dynamic_cast<ReLU<T>*>(net[l]))
+				{
+					relu->out_one_way = false;
+					if (relu->fused_into_maxpool() || std::find(add_operands.begin(), add_operands.end(), l) != add_operands.end())
+						continue;
+					int n = l + 1;
+					while (n < (int)net.size() && (net[n]->type == LayerType::AVGPOOL2D || net[n]->type == LayerType::ADAPTIVEAVGPOOL2D))
+						n++;
+					relu->out_one_way = n < (int)net.size() && (net[n]->type == LayerType::CONV2D || net[n]->type == LayerType::LINEAR);
+				}
+#else
+			(void) add_operands;
+#endif
+		}
 		// FUSE_RELU_AVG: a ReLU followed by an average pooling divides for it (ReLU::set_fused_avgpool_denominator)
 		void fuse_relu_pools()
 		{
@@ -144,6 +167,7 @@ namespace simple_nn
 
         fuse_relu_pools();
         mark_baked_relu_inputs();
+        mark_one_way_relus();
 
 		// set Loss layer
 		if (loss != nullptr) {

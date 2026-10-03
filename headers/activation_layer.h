@@ -178,6 +178,7 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 		bool input_residual = false;  // the input is a residual sum whose partner conv/FC bakes (g_msb_input_residual)
 		int residual_k = -1;  // that residual sum's number (g_residual_k)
 		int identity_k = -1;  // this ReLU's output is the other addend of residual sum identity_k (g_relu_identity_k)
+		bool out_one_way = false;  // only P0's convs / FC layers read the output (RELU_ONE_WAY_ACTIVE, g_relu_out_one_way)
 		// FUSE_RELU_MAX: a ReLU(-1) only passes its input on; the max pooling after it computes the ReLU
 		bool fused_into_maxpool() const
 		{
@@ -225,7 +226,9 @@ void forward(const MatX<T>& prev_out, bool is_training) override
             g_msb_input_residual = input_residual;
             g_residual_k = residual_k;
             g_relu_identity_k = identity_k;
+            g_relu_out_one_way = out_one_way;
             RELU<m,k>(prev_out.data(), prev_out.data() + this->out_block_size, this->output.data());
+            g_relu_out_one_way = false;
             g_msb_input_baked = true;
             g_msb_input_residual = false;
             g_residual_k = -1;
