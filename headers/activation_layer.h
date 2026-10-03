@@ -209,7 +209,7 @@ void forward(const MatX<T>& prev_out, bool is_training) override
 #if FUSE_RELU_AVG == 1
             curr_denom = denom;
 #endif
-#if FUSE_RELU_AVG == 1 && PROTOCOL == 4 && TRUNC_APPROACH == 1
+#if FUSE_RELU_AVG == 1 && PROTOCOL == 4 && (TRUNC_APPROACH == 1 || TRUNC_APPROACH == 2 || TRUNC_APPROACH == 3)
             if (g_pending_denom > 1)  // an average pooling before this ReLU left its division to the ReLU's TS1
             {
                 if (denom > 1)

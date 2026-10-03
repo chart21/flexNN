@@ -80,7 +80,7 @@ namespace simple_nn
         // with the fold below. TRUNC_APPROACH 1: the pool only sums and the next ReLU's TS1 divides (g_pending_denom;
         // a BatchNorm in between passes its input on with FUSE_CONV_BN).
         const int fold_trunc = 0;
-#if TRUNC_APPROACH == 1 && FUSE_RELU_AVG == 1
+#if (TRUNC_APPROACH == 1 || TRUNC_APPROACH == 2 || TRUNC_APPROACH == 3) && FUSE_RELU_AVG == 1  // TS1, TE0, TE1
         const bool pend = delayed && !fused_into_relu;
 #if FUSE_CONV_BN == 0
         if (pend)
@@ -173,7 +173,7 @@ namespace simple_nn
         T::communicate();
         if (!fused_into_relu && !pend)
             complete_prob_div(out, this->output.size(), denominator, fractional);
-#if FUSE_RELU_AVG == 1 && PROTOCOL == 4 && TRUNC_APPROACH == 1
+#if FUSE_RELU_AVG == 1 && PROTOCOL == 4 && (TRUNC_APPROACH == 1 || TRUNC_APPROACH == 2 || TRUNC_APPROACH == 3)
         if (pend)
             g_pending_denom = denominator;
 #endif

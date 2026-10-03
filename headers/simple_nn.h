@@ -70,8 +70,8 @@ namespace simple_nn
 						avgpool->set_fused_into_relu();
 					}
 				}
-#if PROTOCOL == 4 && TRUNC_APPROACH == 1
-				// TS1 (2PC): an adaptive pooling with uniform kernels after a ReLU is divided by the ReLU's TS1 too
+#if PROTOCOL == 4 && (TRUNC_APPROACH == 1 || TRUNC_APPROACH == 2 || TRUNC_APPROACH == 3)
+				// TS1 / TE (2PC): an adaptive pooling with uniform kernels after a ReLU is divided by the ReLU's TS1 too
 				if (net[l]->type == LayerType::ACTIVATION && net[l + 1]->type == LayerType::ADAPTIVEAVGPOOL2D) {
 					ReLU<T>* relu = dynamic_cast<ReLU<T>*>(net[l]);
 					auto* pool = dynamic_cast<AdaptiveAvgPool2d<T>*>(net[l + 1]);
