@@ -80,10 +80,11 @@ namespace simple_nn
 			(void) add_operands;
 #endif
 		}
-		// FUSE_RELU_AVG: a ReLU followed by an average pooling divides for it (ReLU::set_fused_avgpool_denominator)
+		// FUSE_RELU_AVG: a ReLU followed by an average pooling divides for it (ReLU::set_fused_avgpool_denominator); only
+		// the optimized bit injection divides (bit_injection_opt_range), the plain ReLU would skip the division
 		void fuse_relu_pools()
 		{
-#if FUSE_RELU_AVG == 1
+#if FUSE_RELU_AVG == 1 && OPTIMIZED_BIT_INJECTION_RELU == 1
 			for (int l = 0; l + 1 < net.size(); l++) {
 				if (net[l]->type == LayerType::ACTIVATION && net[l + 1]->type == LayerType::AVGPOOL2D) {
 					ReLU<T>* relu = dynamic_cast<ReLU<T>*>(net[l]);
