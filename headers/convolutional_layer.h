@@ -29,6 +29,8 @@ namespace simple_nn
 	public:
 		bool bake_output = true;  // feeds a baked ReLU directly: masks from the A2B bake (g_conv_bake, set in compile)
 		int residual_producer_k = -1;  // the output is the other addend of residual sum k (g_res_producer_k)
+		bool merge_skip = false;     // residual merge: a sum's addend computed first, not sent (g_res_merge_skip)
+		bool merge_partner = false;  // residual merge: a sum's addend computed last, sends both (g_res_merge_add)
 #if PUBLIC_WEIGHTS == 1
         MatX<UINT_TYPE> kernel;
         VecX<UINT_TYPE> bias;

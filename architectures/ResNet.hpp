@@ -1,5 +1,6 @@
 #pragma once
 #include "../headers/simple_nn.h"
+#include <array>
 
 using namespace simple_nn;
 
@@ -242,6 +243,87 @@ public:
         return ops;
     }
 
+    // RES_MERGE_ACTIVE: the residual sums whose partner (the addend computed last) is a conv and whose other addend P1
+    // never reads except through the sum: a conv whose output only the sum reads (merge_skip: not sent), or a ReLU whose
+    // other readers are convs / FC layers (one-way). The partner's message carries both addends (g_res_merge_add, set by
+    // forward()), and P1 zeroes the other addend before the sum (res_merge). Returns the merged sums' ReLU addends.
+    vector<char> res_merge;  // per Identity_* event: an Identity_ADD whose sum is merged
+    vector<int> mark_residual_merges() {
+        vector<int> relus;
+        res_merge.assign(this->identity_layers.size(), 0);
+#if RES_MERGE_ACTIVE
+        const int L = (int)this->net.size();
+        vector<int> in_src(L, -1);  // the layer whose output each layer reads (-1: the network input)
+        vector<std::array<int, 3>> sums;  // (event, partner, other)
+        int out_src = -1, identity_src = -1, temp_src = -1;
+        size_t i = 0;
+        for (int l = 0; l < L; l++) {
+            for (; i < this->identity_layers.size() && this->identity_layers[i] == l; i++) {
+                const string& type = this->identity_layers_type[i];
+                if (type == "Identity_Store")
+                    identity_src = out_src;
+                else if (type == "Identity_OP_Start") {
+                    temp_src = out_src;
+                    out_src = identity_src;
+                }
+                else if (type == "Identity_OP_Finish") {
+                    identity_src = out_src;
+                    out_src = temp_src;
+                }
+                else if (type == "Identity_ADD") {
+                    if (out_src == l - 1 && identity_src != l - 1)
+                        sums.push_back({(int)i, l - 1, identity_src});
+                    else if (identity_src == l - 1 && out_src != l - 1)
+                        sums.push_back({(int)i, l - 1, out_src});
+                    out_src = -2 - (int)i;  // the sum: the next layer reads neither addend
+                }
+                else
+                    return relus;  // an unknown event: no merging
+            }
+            in_src[l] = out_src;
+            out_src = l;
+        }
+        for (auto [event, partner, other] : sums) {
+            if (other < 0 || dynamic_cast<Conv2d<T>*>(this->net[partner]) == nullptr)
+                continue;
+            int readers = 0, linear_readers = 0, sums_reading = 0;
+            for (int x = 0; x < L; x++)
+                if (in_src[x] == other) {
+                    readers++;
+                    int n = x;  // the layer behind any average poolings
+                    while (n < L && (this->net[n]->type == LayerType::AVGPOOL2D ||
+                                     this->net[n]->type == LayerType::ADAPTIVEAVGPOOL2D))
+                        n = n + 1 < L && in_src[n + 1] == n ? n + 1 : L;
+                    linear_readers += n < L && (this->net[n]->type == LayerType::CONV2D ||
+                                                this->net[n]->type == LayerType::LINEAR);
+                }
+            for (auto& s : sums)
+                sums_reading += s[2] == other;
+            if (sums_reading != 1)
+                continue;
+            if (auto* conv = dynamic_cast<Conv2d<T>*>(this->net[other]); conv && readers == 0)
+                conv->merge_skip = true;
+            else if (auto* relu = dynamic_cast<ReLU<T>*>(this->net[other]);
+                     relu && !relu->fused_into_maxpool() && readers == linear_readers)
+                relus.push_back(other);
+            else
+                continue;
+            dynamic_cast<Conv2d<T>*>(this->net[partner])->merge_partner = true;
+            res_merge[event] = 1;
+        }
+#endif
+        return relus;
+    }
+
+    // residual_operands() without the merged sums' ReLU addends
+    vector<int> unmerged_residual_operands(const vector<int>& merged) const {
+        vector<int> ops;
+        for (int o : residual_operands())
+            if (std::find(merged.begin(), merged.end(), o) == merged.end())
+                ops.push_back(o);
+        return ops;
+    }
+
     void add_block(int in_channels, int intermediate_channels, bool identity_downsample, int stride, string option) {
         const int expansion = 4;
         this->add_identity_layer("Identity_Store");
@@ -334,6 +416,18 @@ identity_in_delayed = delayed;
 #endif
                         }
                         else if(this->identity_layers_type[i] == "Identity_ADD") {
+#if RES_MERGE_ACTIVE && PARTY == 1
+                            // a merged sum: the partner's message carried the other addend (mark_residual_merges);
+                            // with a downsample branch finishing here the partner is the identity
+                            if (res_merge[i]) {
+                                bool finished = false;
+                                for (size_t k = 0; k < i; k++)
+                                    finished |= this->identity_layers[k] == l && this->identity_layers_type[k] == "Identity_OP_Finish";
+                                MatX<T>& other = finished ? out : identity;
+                                for (Eigen::Index e = 0; e < other.size(); e++)
+                                    other.data()[e].zero_m();
+                            }
+#endif
                             out += identity;
                         }
                     i++;
@@ -373,7 +467,37 @@ identity_in_delayed = delayed;
                     }
                 }
 #endif
+#if RES_MERGE_ACTIVE
+                // residual merge (mark_residual_merges): a conv computed first sends nothing; P0 adds the other
+                // addend's masked values to the partner's message (the same buffer as the baked masks above)
+                std::vector<DATATYPE> merge_add;
+                if (auto* conv = dynamic_cast<Conv2d<T>*>(this->net[l])) {
+                    g_res_merge_skip = conv->merge_skip;
+#if PARTY == 0
+                    if (conv->merge_partner && current_phase == PHASE_LIVE) {
+                        const MatX<T>* other = nullptr;
+                        bool finish = false;
+                        for (size_t k = i; k < this->identity_layers.size() && this->identity_layers[k] == l + 1; k++) {
+                            if (this->identity_layers_type[k] == "Identity_OP_Finish")
+                                finish = true;
+                            else if (this->identity_layers_type[k] == "Identity_ADD") {
+                                other = finish ? &temp : &identity;
+                                break;
+                            }
+                        }
+                        merge_add.resize(other->size());
+                        for (Eigen::Index e = 0; e < other->size(); e++)
+                            merge_add[e] = other->data()[e].get_m();
+                        g_res_merge_add = merge_add.data();
+                    }
+#endif
+                }
+#endif
                 this->net[l]->forward(out, is_training);
+#if RES_MERGE_ACTIVE
+                g_res_merge_skip = false;
+                g_res_merge_add = nullptr;
+#endif
 #if A2B_CONV_BAKE_ACTIVE && A2B_BAKE_RESIDUAL == 1
                 g_bake_res_l = nullptr;
                 g_bake_res_k = -1;
@@ -439,7 +563,7 @@ identity_in_delayed = delayed;
         this->fuse_relu_pools();
         this->mark_baked_relu_inputs(residual_sums());
         mark_residual_producers();
-        this->mark_one_way_relus(residual_operands());
+        this->mark_one_way_relus(unmerged_residual_operands(mark_residual_merges()));
 		// set Loss layer
 		if (loss != nullptr) {
 			loss->set_layer(this->net.back()->output_shape());
@@ -762,7 +886,7 @@ void compile(vector<int> input_shape, Optimizer* optim=nullptr, Loss<T>* loss=nu
     this->fuse_relu_pools();
     this->mark_baked_relu_inputs(this->residual_sums());
     this->mark_residual_producers();
-    this->mark_one_way_relus(this->residual_operands());
+    this->mark_one_way_relus(this->unmerged_residual_operands(this->mark_residual_merges()));
     // set Loss layer
     if (loss != nullptr) {
         loss->set_layer(this->net.back()->output_shape());
